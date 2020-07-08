@@ -20,8 +20,7 @@
 #'
 #' @author Bo Markussen
 #'
-#' @seealso
-#' \code{\link{chisq.test}}
+#' @seealso \code{\link{chisq.test}}
 #'
 #' @examples
 #' # The Avadex dataset
