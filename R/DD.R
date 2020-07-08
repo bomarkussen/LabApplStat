@@ -37,7 +37,7 @@
 #' y <- factor(rep(rep(1:4,times=4),each=4))
 #' z <- factor(rep(rep(1:4,each=4),each=4))
 #' myDD <- DD(~x*y*z,data=data.frame(x=x,y=y,z=z))
-#' #summary(myDD)
+#' summary(myDD)
 #' 
 #' #Making the factor diagram closed under minima
 #' mydata <- data.frame(age=rep(c("boy","girl","adult","adult"),4),
@@ -48,7 +48,7 @@
 #' # Example of collinearity
 #' mydata <- data.frame(age=rnorm(102),edu=rnorm(102),sex=factor(rep(c(1,2),51)))
 #' mydata <- transform(mydata,exper=age-edu)
-#' #summary(myDD <- DD(~sex*(age+exper+edu),data=mydata))
+#' summary(myDD <- DD(~sex*(age+exper+edu),data=mydata))
 #' 
 #' # growth of rats
 #' antibiotica <- factor(rep(c(0,40),each=6))

@@ -20,13 +20,8 @@ A factor with the minimum.
 \code{minimum} finds the minimum of two factors, i.e. the finest factors that is coarser than both of the factors.
 }
 \examples{
-Test compare() and minimum() function
 x <- rep(c("boy","girl","adult","adult"),4)
 y <- rep(c("child","child","man","woman"),4)
-compare(x,x)
-compare(x,y)
-compare(x,minimum(x,y))
-compare(minimum(x,y),y)
 minimum(x,y)
 minimum(x,y,FALSE)
 
