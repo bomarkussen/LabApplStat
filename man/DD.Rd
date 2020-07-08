@@ -18,7 +18,25 @@ DD(fixed, random = NULL, data, threshold = 0.1, eps = 1e-12)
 \item{eps}{threshold for deeming singular values to be "zero". Defaults to 1e-12.}
 }
 \value{
+<<<<<<< HEAD
 An object of class \code{\link{designDiagram"}}
+=======
+An object of class "designDiagram", which is a list with the following components:
+\describe{
+\item{terms}{Named vector with all terms in the design.}
+\item{random.terms}{Vector with the random terms in the design.}
+\item{Nparm}{Named vector with the number of parameters for the terms.}
+\item{df}{Named vector with the degrees of freedom for the terms.}
+\item{collinearities}{Named vector with the number of (approximate) collinearities that have been removed from the terms.}
+\item{SS}{Named vector with Sum-of-Squares if a response variable was specified.}
+\item{MSS}{Named vector with Mean-Sum-of-Squares if a response variable was specified.}
+\item{relations}{Named matrix with relations between variables with the following interpretation: "0"=linear indepent, "<"=row term is a subspace of column, "<-"=row term is a subspace of column term and no other terms are inbetween, ">" and "->" the similar interpretatioin between columns and rows, name=name of minimum between row and column term.}
+\item{pvalue}{Named matrix with p-values for F-tests. p-values are stated at the collapsed nesting, but F-test are done against the most coarse nested random effect.}
+\item{inner}{Named matrix of squared inner products of subspaces with nesting subspaces removed. Rouded at 6'th digits, and used to decide orthogonality of the design.}
+\item{response}{Logical stating whether a response variable was present.}
+}
+There exists print, summary and plot-methods for objects of class \code{"designDiagram"}.
+>>>>>>> ad077cf0b880e7b997afe28586a2e18ddfd1050c
 }
 \description{
 \code{DD} computes the Design Diagram for a linear model.
