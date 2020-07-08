@@ -16,7 +16,7 @@
 #' @seealso
 #' \code{\link{compare}}
 #' 
-#' @example 
+#' @examples 
 #' x <- rep(c("boy","girl","adult","adult"),4)
 #' y <- rep(c("child","child","man","woman"),4)
 #' minimum(x,y)
