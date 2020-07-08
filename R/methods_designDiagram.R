@@ -27,6 +27,11 @@
 #' @param \dots Not used.
 #' 
 #' @seealso \code{\link{DD}}
+#' 
+#' @importFrom graphics plot
+#' @importFrom stats as.formula formula model.frame model.matrix model.response pf pt qt quantile r2dtable rmultinom rt terms
+#' @importFrom ggplot2 ggplot
+#' @importFrom igraph make_graph set_vertex_attr E E<- layout_with_sugiyama %>%
 
 #' @rdname designDiagram-class
 #' @export

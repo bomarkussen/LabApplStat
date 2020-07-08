@@ -29,7 +29,7 @@
 #' mydata <- data.frame(age=rep(c("boy","girl","adult","adult"),4),
 #'                      gender=rep(c("child","child","man","woman"),4))
 #' myDD <- DD(~0+age+gender,data=mydata)
-#' #plot(myDD)
+#' plot(myDD)
 #' 
 #' # Example of collinearity
 #' mydata <- data.frame(age=rnorm(102),edu=rnorm(102),sex=factor(rep(c(1,2),51)))
@@ -41,7 +41,7 @@
 #' vitamin <- factor(rep(rep(c(0,5),each=3),2))
 #' growth <- c(1.30,1.19,1.08,1.26,1.21,1.19,1.05,1.00,1.05,1.52,1.56,1.55)
 #' mydata <- data.frame(antibiotica=antibiotica,vitamin=vitamin,growth=growth)
-#' #plot(DD(growth~antibiotica*vitamin,data=mydata),"MSS")
+#' plot(DD(growth~antibiotica*vitamin,data=mydata),"MSS")
 #' 
 #' \dontrun{
 #'   # ANCOVA: Non-orthogonal design
