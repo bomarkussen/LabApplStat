@@ -6,9 +6,9 @@ Authors@R:
            family = "Markussen",
            role = c("aut", "cre"),
            email = "bomar@math.ku.dk",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_gpl3_license()`
+           comment = c(ORCID = "0000-0001-7793-9620"))
+Description: Miscellaneous scripts, e.g. functionality to make and plot factor diagrams for the statistical design.
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
