@@ -11,7 +11,10 @@ Encoding: UTF-8
 
 RnwWeave: knitr
 LaTeX: pdfLaTeX
+<<<<<<< HEAD
 
 BuildType: Package
 PackageUseDevtools: Yes
 PackageInstallArgs: --no-multiarch --with-keep.source
+=======
+>>>>>>> 0c9bab0686cb3f7b4ca3129c4adb4aee148c9624

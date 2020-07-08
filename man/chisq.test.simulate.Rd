@@ -22,12 +22,17 @@ An object of class \code{"htest"}.
 \code{chisq.test.simulate} simulates the chi-squared test for a 2-way contingency tabel.
 }
 \details{
+<<<<<<< HEAD
 Using \code{conditioning="both"} corresponds to selecting \code{simulate.p.value=TRUE} in \code{\link{chisq.test}}. However, conditioning on both row and column marginals appears to be rarely justified in real data. Instead \code{conditioning="total"} is the correct choice for testing independence. Similarly, \code{conditioning="row"} is recommended when the row marginals e.g. are fixed by experimental design.
+=======
+Using \code{conditioning="both"} corresponds to selecting \code{simulate.p.value=TRUE} in \code{\link{chisq.test}}. However, conditioning on both row and column marginals appear to be rarely justified in real data. Instead \code{conditioning="total"} is the correct choice for testing independence. Similarly, \code{conditioning="row"} is recommended when the row marginals e.g. are fixed by experimental design.
+>>>>>>> 0c9bab0686cb3f7b4ca3129c4adb4aee148c9624
 The option \code{x0} has no effect when conditioning on both row and column marginals.
 }
 \note{
 The code has not been optimized for speed, and might be slow.
 }
+<<<<<<< HEAD
 \examples{
 # The Avadex dataset
 Xobs <- matrix(c(2,3,6,40),2,2)
@@ -44,10 +49,15 @@ chisq.test.simulate(Xobs,"total")
 chisq.test(Xobs,simulate.p.value=TRUE)
 
 }
+=======
+>>>>>>> 0c9bab0686cb3f7b4ca3129c4adb4aee148c9624
 \seealso{
 \code{\link{chisq.test}}
 }
 \author{
 Bo Markussen
 }
+<<<<<<< HEAD
 \keyword{htest}
+=======
+>>>>>>> 0c9bab0686cb3f7b4ca3129c4adb4aee148c9624
