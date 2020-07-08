@@ -18,11 +18,7 @@ DD(fixed, random = NULL, data, threshold = 0.1, eps = 1e-12)
 \item{eps}{threshold for deeming singular values to be "zero". Defaults to 1e-12.}
 }
 \value{
-<<<<<<< HEAD
-An object of class \code{\link{designDiagram}}
-=======
-An object of class \code{\link{designDiagram"}}
->>>>>>> 3711ac6c99fe5901296b312bdddbb4c306ff9706
+An object of class \code{\link{designDiagram-class}}
 }
 \description{
 \code{DD} computes the Design Diagram for a linear model.

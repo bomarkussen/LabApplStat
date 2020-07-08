@@ -11,7 +11,7 @@
 #' @param threshold threshold for removing (approximative) collinearities in the design. Defaults to 0.1.
 #' @param eps threshold for deeming singular values to be "zero". Defaults to 1e-12.
 #' 
-#' @return An object of class \code{\link{designDiagram}}
+#' @return An object of class \code{\link{designDiagram-class}}
 #' 
 #' @author Bo Markussen
 #' 
