@@ -3,11 +3,8 @@
 #' @description
 #' `chisq.test.simulate` simulates the chi-squared test for a 2-way contingency tabel.
 #'
-<<<<<<< HEAD
 #' @keywords htest
 #' 
-=======
->>>>>>> 0c9bab0686cb3f7b4ca3129c4adb4aee148c9624
 #' @param x matrix with the contingency table
 #' @param conditioning character string specifying the simulation scenario. Defaults to \code{"total"}. Other possible scenarios are \code{"row"}, \code{"col"}, and \code{"both"}.
 #' @param x0 matrix specifying the null distribution. Defaults to \code{NULL}, in which case the null is estimated from the observed data \code{x}.
@@ -16,27 +13,17 @@
 #' @return An object of class \code{"htest"}.
 #'
 #' @details
-<<<<<<< HEAD
 #' Using \code{conditioning="both"} corresponds to selecting \code{simulate.p.value=TRUE} in \code{\link{chisq.test}}. However, conditioning on both row and column marginals appears to be rarely justified in real data. Instead \code{conditioning="total"} is the correct choice for testing independence. Similarly, \code{conditioning="row"} is recommended when the row marginals e.g. are fixed by experimental design.
-=======
-#' Using \code{conditioning="both"} corresponds to selecting \code{simulate.p.value=TRUE} in \code{\link{chisq.test}}. However, conditioning on both row and column marginals appear to be rarely justified in real data. Instead \code{conditioning="total"} is the correct choice for testing independence. Similarly, \code{conditioning="row"} is recommended when the row marginals e.g. are fixed by experimental design.
->>>>>>> 0c9bab0686cb3f7b4ca3129c4adb4aee148c9624
 #' The option \code{x0} has no effect when conditioning on both row and column marginals.
 #'
 #' @note The code has not been optimized for speed, and might be slow.
 #'
 #' @author Bo Markussen
 #'
-<<<<<<< HEAD
-#' @seealso \code{\link{chisq.test}}
-#'
-#' @examples
-=======
 #' @seealso
 #' \code{\link{chisq.test}}
 #'
-#' @example
->>>>>>> 0c9bab0686cb3f7b4ca3129c4adb4aee148c9624
+#' @examples
 #' # The Avadex dataset
 #' Xobs <- matrix(c(2,3,6,40),2,2)
 #' rownames(Xobs) <- c("Avadex +","Avadex -")
@@ -50,13 +37,8 @@
 #'
 #' # Conditioning both on row and column marginals is simular to chisq.test().
 #' chisq.test(Xobs,simulate.p.value=TRUE)
-<<<<<<< HEAD
 #' 
 #' @export
-=======
-
-
->>>>>>> 0c9bab0686cb3f7b4ca3129c4adb4aee148c9624
 chisq.test.simulate <- function(x,conditioning="total",x0=NULL,B=1e4) {
   # if the null isn't stated, then take null from data
   if (is.null(x0)) {
