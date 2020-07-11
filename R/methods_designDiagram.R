@@ -21,17 +21,21 @@
 #' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares. The two latter options are only available if a response variable was specified for the design. Defaults to \code{"none"}.
 #' @param pvalue boolean specifying whether p-values should be inserted on the graphs. This is only possible if a response variable was specified. Defaults to \code{TRUE} is \code{circle="MSS"} and \code{FALSE} otherwise.
 #' @param kill.intercept boolean specifying whether circle for the intercept should be removed. This is practicable since the intercept term otherwise may overweight the remaining terms. Defaults to \code{TRUE}.
-#' @param diam diameter of largest circle. For layout purposes only. Defaults to 80.
 #' @param color color of circles. Defaults to \code{"lightgreen"} for Sum-of-Squares and to \code{"lightblue"} for Mean-Sum-of-Squares.
-#' @param border border margins. May either be given as a single numeric, or as 4-vector giving lower-left-upper-right margins.
-#' @param \dots Not used.
+#' @param circle.scaling numeric specifying size scaling of circles. Defaults to \code{1}, which corresponds to the largest circle having a radius that is half of the shortest distance between two nodes.
+#' @param arrow.type specifying arrow heads via \code{\link{arrow}}. Defaults to \code{arrow(angle=20,length=unit(4,"mm"))}.
+#' @param xlim x-range of diagram plot. Defaults to \code{c(0,1)}.
+#' @param ylim y-range of diagram plot. Defaults to \code{c(0,1)}.
+#' @param horizontal boolen specifying if the design diagram should be drawn horizontally. Defauls to \code{FALSE}, which gives a vertical layout.
 #' 
 #' @seealso \code{\link{DD}}
 #' 
-#' @importFrom graphics plot
 #' @importFrom stats as.formula formula model.frame model.matrix model.response pf pt qt quantile r2dtable rmultinom rt terms
-#' @importFrom ggplot2 ggplot
-#' @importFrom igraph make_graph set_vertex_attr E E<- layout_with_sugiyama %>%
+#' @importFrom ggplot2 unit geom_blank geom_label coord_fixed 
+#' @importFrom ggraph create_layout ggraph geom_node_circle geom_node_text geom_edge_link label_rect 
+#' @importFrom grid convertX convertY
+
+# @importFrom igraph make_graph set_vertex_attr E E<- layout_with_sugiyama %>%
 
 #' @rdname designDiagram-class
 #' @export
@@ -87,73 +91,66 @@ summary.designDiagram <- function(x,...) {
 #' @rdname designDiagram-class
 #' @export
 plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),kill.intercept=TRUE,
-                               diam=80,color=ifelse(circle=="MSS","lightblue","lightgreen"),
-                               border=c(0,0.1,0.1,0.2),
-                               ...) {
+                               color=ifelse(circle=="MSS","lightblue","lightgreen"),
+                               circle.scaling=1,
+                               arrow.type=arrow(angle=20,length=unit(4,"mm")),
+                               xlim=c(0,1),ylim=c(0,1),
+                               horizontal=FALSE) {
+  # data frame with edges 
+  g.df <- data.frame(from=as.character(1+(which(x$relations=="<-")-1)%/%length(x$terms)),
+                     to=as.character(1+(which(x$relations=="<-")-1)%%length(x$terms)),
+                     pvalue=paste0("p=",signif(x$pvalue[x$relations=="<-"],digits=3)))
+  g.df$pvalue[g.df$pvalue=="p=NA"] <- NA 
   
-  # sanity check
-  if (!is.element(circle,c("none","SS","MSS"))) stop("circle-argumente must be either none, SS, or MSS")
-  if ((!x$response) & (is.element(circle,c("SS","MSS")))) {
-    circle <- "none"
-    warning("Sum of Squares unavailable")
+  # Sugiyama layout scaled in box specified by xlim and ylim
+  g <- create_layout(g.df,"sugiyama")
+  if (horizontal) {
+    tmp <- g$x
+    g$x <- -g$y
+    g$y <- tmp
   }
-  if (length(border)==1) border <- rep(border,4)
-
-  # set-up basic graph
-  N <- length(x$terms)
-  myedges <- c(sapply(which(x$relations=="<-"),function(z){c(1+(z-1)%/%N,1+(z-1)%%N)}))
-  g <- make_graph(myedges,directed=TRUE) %>% set_vertex_attr("label",value=rep(" ",N))
-  if (pvalue) E(g)$label <- as.character(signif(x$pvalue[x$relations=="<-"],digits=3))
-  lay1 <- layout_with_sugiyama(g,attributes="all")
-
-  # takeout layout and turn the vertical direction: NOT USED ANYMORE
-  #tmp     <- get.graph.attribute(lay1$extd_graph)$layout
-  #y.max   <- 1+max(tmp[,2])
-  #tmp[,2] <- y.max-tmp[,2]
-  #lay1$extd_graph <- set_graph_attr(lay1$extd_graph,"layout",tmp)
-  #tmp     <- lay1$layout
-  #tmp[,2] <- y.max-tmp[,2]
-  #lay1$layout <- tmp
-  #tmp     <- lay1$layout.dummy
-  #tmp[,2] <- y.max-tmp[,2]
-  #lay1$layout.dummy <- tmp
+  g$x <- xlim[1] + (xlim[2]-xlim[1])*(g$x-min(g$x))/(max(g$x)-min(g$x))
+  g$y <- ylim[1] + (ylim[2]-ylim[1])*(g$y-min(g$y))/(max(g$y)-min(g$y))
   
-  # Plain design diagram
-  if (circle=="none") {
-    plot(lay1$extd_graph,
-         vertex.size=c(rep(30,length(lay1$layout)/2),rep(0,length(lay1$layout.dummy)/2)),
-         vertex.color=NA,vertex.frame.color=NA,
-         rescale=FALSE,
-         xlim=c(min(lay1$layout[,1])-border[2],max(lay1$layout[,1])+border[4]),
-         ylim=c(min(lay1$layout[,2])-border[1],max(lay1$layout[,2])+border[3]))
-  }
+  # Text labels
+  g$text  <- paste0('"',x$terms,'"[',x$df,']^',x$Nparm)[as.numeric(g$name)]
+  g$text0 <- paste0(x$terms,x$Nparm)[as.numeric(g$name)]
   
-  # Design diagram with circles
+  # Radii of circles
   if (is.element(circle,c("SS","MSS"))) {
-    # find circle diameters
+    # choose maximal radius
+    max.r <- circle.scaling*0.5*sqrt(outer(g$x,g$x,"-")^2 + outer(g$y,g$y,"-")^2)
+    max.r <- min(max.r[upper.tri(max.r)])
+    # find circle radii
     if (circle=="SS") {area <- x$SS} else {area <- x$MSS}
     if (kill.intercept & (is.element("1",names(area)))) area["1"] <- 0
-    diam <- diam*sqrt(area/max(area,na.rm=TRUE))
-    diam[is.na(diam)] <- 0
-    diam[is.nan(diam)] <- 0
-    # make graph
-    plot(lay1$extd_graph,
-         vertex.size=c(diam,rep(0,length(lay1$layout.dummy)/2)),
-         vertex.color=color,vertex.frame.color=NA,
-         rescale=FALSE,
-         xlim=c(min(lay1$layout[,1])-border[2],max(lay1$layout[,1])+border[4]),
-         ylim=c(min(lay1$layout[,2])-border[1],max(lay1$layout[,2])+border[3]))
+    g$r <- (max.r*sqrt(area/max(area,na.rm=TRUE)))[as.numeric(g$name)]
+    g$r[is.na(g$r)] <- 0
+    g$r[is.nan(g$r)] <- 0
+  } else {
+    g$r <- 0
   }
   
-  # insert vertex names
-  for (i in 1:N) {
-    if (x$collinearities[i]==0) {
-      text(lay1$layout[i,1],lay1$layout[i,2],cex=1.2,
-           substitute(x[b]^a,list(x=names(x$terms)[i],a=x$Nparm[i],b=x$df[i])))
-    } else {
-      tmp <- x$collinearities[i]
-      text(lay1$layout[i,1],lay1$layout[i,2],cex=1.2,
-           substitute(x[b-c]^a,list(x=names(x$terms)[i],a=x$Nparm[i],b=x$df[i]+tmp,c=tmp)))
-    }
+  # make graph
+  p <- ggraph(g) + 
+    geom_blank(aes(x=x-0.5*diff(xlim)*grid::convertX(unit(attr(label_rect(text0,fontsize=18),"width"),"cm"),"npc",valueOnly = TRUE),
+                   y=y-0.5*diff(ylim)*grid::convertY(unit(attr(label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE))) +
+    geom_blank(aes(x=x+0.5*diff(xlim)*grid::convertX(unit(attr(label_rect(text0,fontsize=18),"width"),"cm"),"npc",valueOnly = TRUE),
+                   y=y+0.5*diff(ylim)*grid::convertY(unit(attr(label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE)))
+  if (is.element(circle,c("SS","MSS"))) {
+    p <- p + geom_node_circle(aes(r=r),col=color,fill=color) +
+      coord_fixed()
   }
+  p <- p + geom_node_text(aes(x=x,y=y,label=text),parse=TRUE)
+  p <- p + geom_edge_link(aes(start_cap=label_rect(node1.text0),
+                              end_cap=label_rect(node2.text0)),
+                          arrow=arrow.type)
+  if (pvalue) {
+    p <- p + geom_label(aes(x=(xend+x)/2, 
+                            y=(yend+y)/2 - diff(ylim)*grid::convertY(unit(1,"cm"),"npc",valueOnly=TRUE)*(yend==y), label=pvalue), get_edges(),
+                        label.padding = unit(0.15,"lines"))
+  }
+  
+  # return graph
+  return(p)
 }
