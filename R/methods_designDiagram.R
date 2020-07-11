@@ -26,7 +26,7 @@
 #' @param arrow.type specifying arrow heads via \code{\link{arrow}}. Defaults to \code{arrow(angle=20,length=unit(4,"mm"))}.
 #' @param xlim x-range of diagram plot. Defaults to \code{c(0,1)}.
 #' @param ylim y-range of diagram plot. Defaults to \code{c(0,1)}.
-#' @param horizontal boolen specifying if the design diagram should be drawn horizontally. Defauls to \code{FALSE}, which gives a vertical layout.
+#' @param horizontal boolen specifying if the design diagram should be drawn horizontally or vertically. Defauls to \code{TRUE}.
 #' 
 #' @seealso \code{\link{DD}}
 #' 
@@ -34,9 +34,6 @@
 #' @importFrom ggplot2 unit geom_blank geom_label coord_fixed 
 #' @importFrom ggraph create_layout ggraph geom_node_circle geom_node_text geom_edge_link label_rect 
 #' @importFrom grid convertX convertY
-
-# @importFrom igraph make_graph set_vertex_attr E E<- layout_with_sugiyama %>%
-
 #' @rdname designDiagram-class
 #' @export
 print.designDiagram <- function(x,...) {
@@ -95,7 +92,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),kill.inter
                                circle.scaling=1,
                                arrow.type=arrow(angle=20,length=unit(4,"mm")),
                                xlim=c(0,1),ylim=c(0,1),
-                               horizontal=FALSE) {
+                               horizontal=TRUE) {
   # data frame with edges 
   g.df <- data.frame(from=as.character(1+(which(x$relations=="<-")-1)%/%length(x$terms)),
                      to=as.character(1+(which(x$relations=="<-")-1)%%length(x$terms)),
@@ -147,7 +144,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),kill.inter
                           arrow=arrow.type)
   if (pvalue) {
     p <- p + geom_label(aes(x=(xend+x)/2, 
-                            y=(yend+y)/2 - diff(ylim)*grid::convertY(unit(1,"cm"),"npc",valueOnly=TRUE)*(yend==y), label=pvalue), get_edges(),
+                            y=(yend+y)/2 - diff(ylim)*grid::convertY(unit(4,"mm"),"npc",valueOnly=TRUE)*(yend==y), label=pvalue), get_edges(),
                         label.padding = unit(0.15,"lines"))
   }
   
