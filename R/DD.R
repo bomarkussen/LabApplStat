@@ -62,7 +62,7 @@ DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
   # Initialize
   # -------------------------
   
-  # find terms in the design and place square brakets around random terms
+  # find terms in the design and place square brackets around random terms
   myterms <- attr(terms(fixed,keep.order=TRUE),"term.labels")
   if (attr(terms(fixed),"intercept")==1) myterms <- c("1",myterms)
   if (is.null(random)) {myterms.random <- NULL} else {
@@ -209,8 +209,8 @@ DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
   for (k in 1:M) {
     # find next variable in a sequential ordering of the variables
     if (k==1) {
-      # Note: which.min() selects the index of the first minimum, which hence complies with the 
-      #       initial order as much as possible.
+      # Note: which.min() selects the index of the first minimum, which hence 
+      #       complies with the initial order as much as possible.
       i <- which.min(M*apply(relations==">",1,sum)-apply(relations=="<",1,sum))
     } else {
       i <- which.min(M*is.element(1:M,myorder[1:(k-1)])
@@ -220,10 +220,10 @@ DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
     # find orthogonal basis
     A <- mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]]
     tmp <- svd(A)
-    mybasis[[i]] <- tmp$u[,tmp$d>threshold,drop=FALSE]
+    mybasis[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]    # 'eps' changed from 'threshold'
     # update myorder
     myorder[k] <- i
-    # updata basis of lower order variables
+    # update basis of lower order variables
     B <- cbind(B,mybasis[[i]])
   }
 
@@ -242,12 +242,15 @@ DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
   mydf <- unlist(lapply(mybasis,function(x){dim(x)[2]}))
 
   # compute number of collinearities
+  # TO DO: Should this be removed, and replaced by R2 considerations???
   mycol <- rep(NA,M)
   for (i in 1:M) {
     mycol[i] <- Nparm[i]-sum(mydf[relations[i,]==">"])-mydf[i]
   }
   
   # Extend with the identity variable
+  # TO DO: What is the identity variable is already included!?
+  #        Then it will have df=0, but what does this imply??
   myterms.random <- c(myterms.random,"[I]")
   myterms   <- c(myterms,"[I]")
   Nparm     <- c(Nparm,N)
@@ -331,6 +334,7 @@ DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
 
   # Investigate orthogonality:
   # 1. Remove underlying nested designs from designs. Done top-down!
+  # TO DO: Is this necessary? Hasn't this already been implicitly done?
   if (M>1) for (i in (M-1):1) {
     if (mydf[i]==0) {
       mydesigns[[i]] <- matrix(0,nrow(data),0)
