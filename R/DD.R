@@ -8,7 +8,6 @@
 #' @param fixed formula with fixed effects. A response may the specified, but this optional.
 #' @param random formula with random effects. Defaults to \code{NULL} meaning that there are no other random effects than the residual, which is added to all designs.
 #' @param data data frame with the explanatory variables and the response (if specified).
-#' @param threshold threshold for removing (approximative) collinearities in the design. Defaults to 0.1.
 #' @param eps threshold for deeming singular values to be "zero". Defaults to 1e-12.
 #' 
 #' @return An object of class \code{\link{designDiagram-class}}
@@ -52,7 +51,7 @@
 #' }
 #' 
 #' @export
-DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
+DD <- function(fixed,random=NULL,data,eps=1e-12) {
   # sanity check
   if (class(fixed)!="formula") stop("fixed-argument must be a formula")
   if ((!is.null(random)) && (class(random)!="formula")) stop("random-argument must be a formula")
@@ -193,7 +192,6 @@ DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
   # Find basis:
   #   1) find sequential ordering of the variables
   #   2) make associated basis for independent designs "from right to left"
-  #   3) remove approximate collinearities (relative to threshold-argument)
   #   Uses and modifies the variables: myorder, mybasis
   #   Also uses the variables: M, myterms, mydesigns, Nparm, relations
   # -------------------------------------------------------------------------
@@ -203,6 +201,8 @@ DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
   myorder <- rep(NA,M)
 
   # Initialize basis for lower order variables
+  # TO DO: Lower order variables should only be defined genuine to the present
+  #        variable. As presently done in lines 341 - 354.
   B <- matrix(0,N,0)
   
   # Loop through all variables
@@ -220,7 +220,7 @@ DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
     # find orthogonal basis
     A <- mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]]
     tmp <- svd(A)
-    mybasis[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]    # 'eps' changed from 'threshold'
+    mybasis[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
     # update myorder
     myorder[k] <- i
     # update basis of lower order variables
@@ -241,7 +241,7 @@ DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
   # compute degrees of freedom
   mydf <- unlist(lapply(mybasis,function(x){dim(x)[2]}))
 
-  # compute number of collinearities
+  # compute number of perfect collinearities
   # TO DO: Should this be removed, and replaced by R2 considerations???
   mycol <- rep(NA,M)
   for (i in 1:M) {
