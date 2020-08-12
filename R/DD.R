@@ -189,9 +189,9 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   }
 
   # -------------------------------------------------------------------------
-  # Find basis:
+  # Find orthonormal basis for Type-I ANOVA:
   #   1) find sequential ordering of the variables
-  #   2) make associated basis for independent designs "from right to left"
+  #   2) make associated orthonormal basis for terms "from right to left"
   #   Uses and modifies the variables: myorder, mybasis
   #   Also uses the variables: M, myterms, mydesigns, Nparm, relations
   # -------------------------------------------------------------------------
@@ -201,8 +201,6 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   myorder <- rep(NA,M)
 
   # Initialize basis for lower order variables
-  # TO DO: Lower order variables should only be defined genuine to the present
-  #        variable. As presently done in lines 341 - 354.
   B <- matrix(0,N,0)
   
   # Loop through all variables
@@ -219,17 +217,13 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
     }
     # find orthogonal basis
     A <- mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]]
-    tmp <- svd(A)
+    tmp <- svd(A,nv=0)
     mybasis[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
     # update myorder
     myorder[k] <- i
     # update basis of lower order variables
     B <- cbind(B,mybasis[[i]])
   }
-
-  # ----------------------------------
-  # Compute summaries and statistics
-  # ----------------------------------
 
   # Reorder variables
   myterms   <- myterms[myorder]
@@ -240,6 +234,44 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   
   # compute degrees of freedom
   mydf <- unlist(lapply(mybasis,function(x){dim(x)[2]}))
+  
+  # --------------------------------------------------------------------
+  # Investigate orthogonality:
+  # 1) Remove underlying nested designs from designs. Done top-down!
+  # 2) Compute inner products to reveal potential collinearity between 
+  #    non-comparable terms.
+  # 3) In case of potential collinearity issues then give a warning.
+  # --------------------------------------------------------------------
+
+  # 1. Remove nested designs from the designs. 
+  if (M>1) for (i in (M-1):1) {
+    if (mydf[i]==0) {
+      mydesigns[[i]] <- matrix(0,nrow(data),0)
+    } else {
+      tmp <- is.element(relations[i,],c(">","->"))
+      if (any(tmp)) {
+        B <- NULL
+        for (j in which(tmp)) B <- cbind(B,mydesigns[[j]])
+        tmp <- svd(B,nv=0)
+        B <- tmp$u[,tmp$d>eps,drop=FALSE]
+        tmp <- svd(mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]],nv=0)
+        mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
+      }
+    }
+  }
+  
+  # 2. Compute inner products
+  inner <- matrix(NA,M-1,M-1)
+  for (i in 1:(M-1)) for (j in 1:(M-1)) {
+    inner[i,j] <- round(sum(c(t(mydesigns[[i]])%*%mydesigns[[j]])^2),floor(-log10(eps)))
+  }
+  # 3. issue warning for non-orthogonal designs
+  if (any(inner[upper.tri(inner)]!=0)) warning("Design is non-orthogonal: Sum-of-Squares and p-values may depend on order of terms.")
+  
+  
+  # ----------------------------------
+  # Compute summaries and statistics
+  # ----------------------------------
 
   # compute number of perfect collinearities
   # TO DO: Should this be removed, and replaced by R2 considerations???
@@ -332,34 +364,6 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
     }
   }
 
-  # Investigate orthogonality:
-  # 1. Remove underlying nested designs from designs. Done top-down!
-  # TO DO: Is this necessary? Hasn't this already been implicitly done?
-  # Answer: No, above all(!) nested designs were removed in the construction
-  #         of mybasis. But perhaps the algorithm should be redesigned. And
-  #         the present orthogonalization be done at the beginning!?
-  if (M>1) for (i in (M-1):1) {
-    if (mydf[i]==0) {
-      mydesigns[[i]] <- matrix(0,nrow(data),0)
-    } else {
-      tmp <- is.element(relations[i,],c(">","->"))
-      if (any(tmp)) {
-        B <- NULL
-        for (j in which(tmp)) B <- cbind(B,mydesigns[[j]])
-        tmp <- svd(B)
-        B <- tmp$u[,tmp$d>eps]
-        mydesigns[[i]] <- svd(mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]],nu=mydf[i],nv=0)$u
-      }
-    }
-  }
-  # 2. Compute inner products
-  inner <- matrix(NA,M-1,M-1)
-  for (i in 1:(M-1)) for (j in 1:(M-1)) {
-    inner[i,j] <- round(sum(c(t(mydesigns[[i]])%*%mydesigns[[j]])^2),6)
-  }
-  # 3. issue warning for non-orthogonal designs
-  if (any(inner[upper.tri(inner)]!=0)) warning("Design is non-orthogonal: Sum-of-Squares and p-values may depend on order of terms.")
-  
   # return result
   names(myterms) <- names(Nparm) <- names(mydf) <- names(mycol) <- names(SS) <- names(MSS) <-
     rownames(relations) <- colnames(relations) <- rownames(pvalue) <- colnames(pvalue) <- myterms
