@@ -309,7 +309,7 @@ DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
     SS[M] <- sum(y^2)
     if (M>1) {
       SS[1:(M-1)]  <- unlist(lapply(mycoef,function(x){sum(x^2)}))
-      SS[M] <- SS[M] - sum(SS[1:(M-1)])
+      SS[M] <- max(0,SS[M] - sum(SS[1:(M-1)]))
     }
     MSS[1:M]     <- SS/mydf
     MSS[mydf==0] <- 0
@@ -335,6 +335,9 @@ DD <- function(fixed,random=NULL,data,threshold=0.1,eps=1e-12) {
   # Investigate orthogonality:
   # 1. Remove underlying nested designs from designs. Done top-down!
   # TO DO: Is this necessary? Hasn't this already been implicitly done?
+  # Answer: No, above all(!) nested designs were removed in the construction
+  #         of mybasis. But perhaps the algorithm should be redesigned. And
+  #         the present orthogonalization be done at the beginning!?
   if (M>1) for (i in (M-1):1) {
     if (mydf[i]==0) {
       mydesigns[[i]] <- matrix(0,nrow(data),0)

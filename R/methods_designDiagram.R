@@ -100,14 +100,22 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),kill.inter
   g.df$pvalue[g.df$pvalue=="p=NA"] <- NA 
   
   # Sugiyama layout scaled in box specified by xlim and ylim
-  g <- create_layout(g.df,"sugiyama")
+  g <- create_layout(g.df,"sugiyama",maxiter=200)
   if (horizontal) {
     tmp <- g$x
     g$x <- -g$y
     g$y <- tmp
   }
-  g$x <- xlim[1] + (xlim[2]-xlim[1])*(g$x-min(g$x))/(max(g$x)-min(g$x))
-  g$y <- ylim[1] + (ylim[2]-ylim[1])*(g$y-min(g$y))/(max(g$y)-min(g$y))
+  if (max(g$x)>min(g$x)) {
+    g$x <- xlim[1] + (xlim[2]-xlim[1])*(g$x-min(g$x))/(max(g$x)-min(g$x))
+  } else {
+    g$x <- mean(xlim)
+  }
+  if (max(g$y)>min(g$y)) {
+    g$y <- ylim[1] + (ylim[2]-ylim[1])*(g$y-min(g$y))/(max(g$y)-min(g$y))
+  } else {
+    g$y <- mean(ylim)
+  }
   
   # Text labels
   g$text  <- paste0('"',x$terms,'"[',x$df,']^',x$Nparm)[as.numeric(g$name)]
