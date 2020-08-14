@@ -196,22 +196,19 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   # 2) Compute inner products to reveal potential collinearity between 
   #    non-comparable terms.
   # 3) In case of potential collinearity issues then give a warning.
+  # 4) Use dimensions of designs as degrees of freedom
   # --------------------------------------------------------------------
   
   # 1. Remove nested designs from the designs. 
   if (M>0) for (i in M:1) {
-    if (mydf[i]==0) {
-      mydesigns[[i]] <- matrix(0,nrow(data),0)
-    } else {
-      tmp <- is.element(relations[i,],c(">","->"))
-      if (any(tmp)) {
-        B <- NULL
-        for (j in which(tmp)) B <- cbind(B,mydesigns[[j]])
-        tmp <- svd(B,nv=0)
-        B <- tmp$u[,tmp$d>eps,drop=FALSE]
-        tmp <- svd(mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]],nv=0)
-        mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
-      }
+    tmp <- is.element(relations[i,],c(">","->"))
+    if (any(tmp)) {
+      B <- NULL
+      for (j in which(tmp)) B <- cbind(B,mydesigns[[j]])
+      tmp <- svd(B,nv=0)
+      B <- tmp$u[,tmp$d>eps,drop=FALSE]
+      tmp <- svd(mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]],nv=0)
+      mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
     }
   }
   
@@ -220,8 +217,12 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   for (i in 1:M) for (j in 1:M) {
     inner[i,j] <- round(sum(c(t(mydesigns[[i]])%*%mydesigns[[j]])^2),floor(-log10(eps)))
   }
+  
   # 3. issue warning for non-orthogonal designs
   if (any(inner[upper.tri(inner)]!=0)) warning("Design is non-orthogonal: Sum-of-Squares and p-values may depend on order of terms.")
+  
+  # 4. compute degrees of freedom
+  mydf <- unlist(lapply(mydesigns,function(x){dim(x)[2]}))
   
   
   # -------------------------------------------------------------------------
@@ -267,9 +268,6 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   relations <- relations[myorder,myorder]
   mybasis   <- mybasis[myorder]
   mydesigns <- mydesigns[myorder]
-  
-  # compute degrees of freedom
-  mydf <- unlist(lapply(mybasis,function(x){dim(x)[2]}))
   
   # ----------------------------------
   # Compute summaries and statistics
