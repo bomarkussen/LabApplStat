@@ -32,8 +32,9 @@
 #' 
 #' # Example of collinearity
 #' mydata <- data.frame(age=rnorm(102),edu=rnorm(102),sex=factor(rep(c(1,2),51)))
-#' mydata <- transform(mydata,exper=age-edu)
-#' summary(myDD <- DD(~sex*(age+exper+edu),data=mydata))
+#' mydata <- transform(mydata,exper=age-edu+0.1*rnorm(102))
+#' mydata <- transform(mydata,wage=2*edu+2*exper+rnorm(102))
+#' summary(myDD <- DD(wage~sex*(age+exper+edu),data=mydata))
 #' 
 #' # growth of rats
 #' antibiotica <- factor(rep(c(0,40),each=6))
@@ -190,16 +191,11 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
     # End while() loop
   }
 
-  # --------------------------------------------------------------------
-  # Remove underlying desigs and investigate orthogonality:
-  # 1) Remove underlying nested designs from designs. Done top-down!
-  # 2) Compute inner products to reveal potential collinearity between 
-  #    non-comparable terms.
-  # 3) In case of potential collinearity issues then give a warning.
-  # 4) Use dimensions of designs as degrees of freedom
-  # --------------------------------------------------------------------
+  # -------------------------------------------------------
+  # Remove underlying designs and find degrees of freedom
+  # -------------------------------------------------------
   
-  # 1. Remove nested designs from the designs. 
+  # Remove nested designs from the designs
   if (M>0) for (i in M:1) {
     tmp <- is.element(relations[i,],c(">","->"))
     if (any(tmp)) {
@@ -212,34 +208,33 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
     }
   }
   
-  # 2. Compute inner products
+  # Compute degrees of freedom
+  mydf <- unlist(lapply(mydesigns,function(x){dim(x)[2]}))
+  
+  
+  # -------------------------------------------------------
+  # Investigate orthogonality by computing inner products
+  # -------------------------------------------------------
+
+  # Compute inner products
   inner <- matrix(NA,M,M)
   for (i in 1:M) for (j in 1:M) {
     inner[i,j] <- round(sum(c(t(mydesigns[[i]])%*%mydesigns[[j]])^2),floor(-log10(eps)))
   }
   
-  # 3. issue warning for non-orthogonal designs
+  # Issue warning for non-orthogonal designs
   if (any(inner[upper.tri(inner)]!=0)) warning("Design is non-orthogonal: Sum-of-Squares and p-values may depend on order of terms.")
   
-  # 4. compute degrees of freedom
-  mydf <- unlist(lapply(mydesigns,function(x){dim(x)[2]}))
   
-  
-  # -------------------------------------------------------------------------
-  # Find orthonormal basis for Type-I ANOVA:
-  #   1) find sequential ordering of the variables
-  #   2) make associated orthonormal basis for terms "from right to left"
-  #   Uses and modifies the variables: myorder, mybasis
-  #   Also uses the variables: M, myterms, mydesigns, Nparm, relations
-  # -------------------------------------------------------------------------
+  # ----------------------------------------------------
+  # Find sequential ordering of the terms
+  # Uses and modifies the variables: 
+  #   myorder, M, myterms, mydesigns, Nparm, relations
+  # ----------------------------------------------------
 
   # Initialize and find basis
-  mybasis <- vector("list",M)
   myorder <- rep(NA,M)
 
-  # Initialize basis for lower order variables
-  B <- matrix(0,N,0)
-  
   # Loop through all variables
   for (k in 1:M) {
     # find next variable in a sequential ordering of the variables
@@ -252,34 +247,20 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
                      +M*apply(relations[,-myorder[1:(k-1)],drop=FALSE]==">",1,sum)
                      -apply(relations[,-myorder[1:(k-1)],drop=FALSE]=="<",1,sum))
     }
-    # find orthogonal basis
-    A <- mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]]
-    tmp <- svd(A,nv=0)
-    mybasis[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
-    # update myorder
     myorder[k] <- i
-    # update basis of lower order variables
-    B <- cbind(B,mybasis[[i]])
   }
 
   # Reorder variables
   myterms   <- myterms[myorder]
   Nparm     <- Nparm[myorder]
   relations <- relations[myorder,myorder]
-  mybasis   <- mybasis[myorder]
   mydesigns <- mydesigns[myorder]
   
+
   # ----------------------------------
   # Compute summaries and statistics
   # ----------------------------------
 
-  # compute number of perfect collinearities
-  # TO DO: Should this be removed, and replaced by R2 considerations???
-  mycol <- rep(NA,M)
-  for (i in 1:M) {
-    mycol[i] <- Nparm[i]-sum(mydf[relations[i,]==">"])-mydf[i]
-  }
-  
   # Extend with the identity variable
   # TO DO: What is the identity variable is already included!?
   #        Then it will have df=0, but what does this imply??
@@ -287,7 +268,6 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   myterms   <- c(myterms,"[I]")
   Nparm     <- c(Nparm,N)
   mydf      <- c(mydf,Nparm[M+1]-sum(mydf))
-  mycol     <- c(mycol,0)
   relations <- cbind(rbind(relations,matrix(">",1,M)),matrix(c(rep("<",M),"="),M+1,1))
   M <- M+1
   
@@ -317,34 +297,32 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
     }
   }
   
-  # Find projections onto basis functions and make F-tests
-  mycoef <- vector("list",M-1)
+  # Find projections onto basis functions and make Type-I F-tests
   pvalue <- matrix(NA,M,M)
-  SS     <- rep(NA,M)
-  MSS    <- rep(NA,M)
+  SS     <- matrix(NA,M,M)
+  MSS    <- matrix(NA,M)
   if (!is.null(y)) {
-    # projections onto basis for non-residual terms
-    if (M>1) for (i in 1:(M-1)) mycoef[[i]] <- c(y%*%mybasis[[i]])
-    # projections onto basis for residual term: REMOVED, but could be reintroduced for purpose of model validation
-    #mycoef[[M]] <- numeric(0)
-    #if (mydf[M]>0) {
-    #  # find basis for residual term
-    #  A <- mybasis[[1]]
-    #  if (M>2) for (i in 2:(M-1)) A <- cbind(A,mybasis[[i]])
-    #  tmp <- svd(A)
-    #  A <- tmp$u[,tmp$d>eps]
-    #  # find projections
-    #  mycoef[[M]] <- c(y%*%svd(cbind(diag(1,nrow=length(y)),A))$u[,dim(A)[2]+1:mydf[M]])
-    #}
-
-    # Compute SS and MSS
-    SS[M] <- sum(y^2)
-    if (M>1) {
-      SS[1:(M-1)]  <- unlist(lapply(mycoef,function(x){sum(x^2)}))
-      SS[M] <- max(0,SS[M] - sum(SS[1:(M-1)]))
+    # find orthogonal basis
+    if (M>1) for (i in 1:(M-1)) {
+      for (j in i:(M-1)) {
+        if (i==j) {
+          A <- mydesigns[[j]]
+        } else {
+          tmp <- svd(do.call("cbind",mydesigns[i:(j-1)]),nv=0)
+          B <- tmp$u[,tmp$d>eps,drop=FALSE]
+          A <- mydesigns[[j]]-B%*%t(B)%*%mydesigns[[j]]
+          tmp <- svd(A,nv=0)
+          A <- tmp$u[,tmp$d>eps,drop=FALSE]
+        }
+        SS[i,j] <- sum(c(y%*%A)^2)
+      }
     }
-    MSS[1:M]     <- SS/mydf
-    MSS[mydf==0] <- 0
+    # Residual SS
+    SS[M,M] <- sum(y^2)
+    SS[1:(M-1),M] <- SS[M,M]-rowSums(SS[1:(M-1),1:(M-1)],na.rm=TRUE)
+
+    # Compute MSS
+    MSS <- SS*matrix(rep(ifelse(mydf>0,1/mydf,0),each=M),M,M)
 
     # F-tests only for terms with positive degrees of freedom, which have
     # only one term nested within them.
@@ -359,16 +337,18 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
         # allocate p-value to an "<-" with df>0
         k <- which((mydf>0) & (relations[i,]=="<-"))
         if (length(k)==0) k <- which(relations[i,]=="<-")[1]
-        pvalue[i,k] <- 1-pf(MSS[i]/MSS[j],mydf[i],mydf[j])
+        pvalue[i,k] <- 1-pf(MSS[1,i]/MSS[1,j],mydf[i],mydf[j])
       }
     }
   }
 
   # return result
-  names(myterms) <- names(Nparm) <- names(mydf) <- names(mycol) <- names(SS) <- names(MSS) <-
-    rownames(relations) <- colnames(relations) <- rownames(pvalue) <- colnames(pvalue) <- myterms
-  rownames(inner) <- colnames(inner) <- names(mycoef) <- names(mybasis) <- names(mydesigns) <- myterms[-M]
-  res <- list(terms=myterms,random.terms=myterms.random,Nparm=Nparm,df=mydf,collinearities=mycol,
+  names(myterms) <- names(Nparm) <- names(mydf) <- 
+    colnames(SS) <- colnames(MSS) <- rownames(relations) <- colnames(relations) <- 
+    rownames(pvalue) <- colnames(pvalue) <- myterms
+  rownames(SS) <- rownames(MSS) <- c("-",myterms[-M])
+  rownames(inner) <- colnames(inner) <- names(mydesigns) <- myterms[-M]
+  res <- list(terms=myterms,random.terms=myterms.random,Nparm=Nparm,df=mydf,
               SS=SS,MSS=MSS,relations=relations,pvalue=pvalue,
               inner=inner,response=!is.null(y))
   class(res) <- "designDiagram"

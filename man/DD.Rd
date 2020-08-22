@@ -4,7 +4,7 @@
 \alias{DD}
 \title{Design diagram for a linear model}
 \usage{
-DD(fixed, random = NULL, data, threshold = 0.1, eps = 1e-12)
+DD(fixed, random = NULL, data, eps = 1e-12)
 }
 \arguments{
 \item{fixed}{formula with fixed effects. A response may the specified, but this optional.}
@@ -12,8 +12,6 @@ DD(fixed, random = NULL, data, threshold = 0.1, eps = 1e-12)
 \item{random}{formula with random effects. Defaults to \code{NULL} meaning that there are no other random effects than the residual, which is added to all designs.}
 
 \item{data}{data frame with the explanatory variables and the response (if specified).}
-
-\item{threshold}{threshold for removing (approximative) collinearities in the design. Defaults to 0.1.}
 
 \item{eps}{threshold for deeming singular values to be "zero". Defaults to 1e-12.}
 }
@@ -39,8 +37,9 @@ plot(myDD)
 
 # Example of collinearity
 mydata <- data.frame(age=rnorm(102),edu=rnorm(102),sex=factor(rep(c(1,2),51)))
-mydata <- transform(mydata,exper=age-edu)
-summary(myDD <- DD(~sex*(age+exper+edu),data=mydata))
+mydata <- transform(mydata,exper=age-edu+0.1*rnorm(102))
+mydata <- transform(mydata,wage=2*edu+2*exper+rnorm(102))
+summary(myDD <- DD(wage~sex*(age+exper+edu),data=mydata))
 
 # growth of rats
 antibiotica <- factor(rep(c(0,40),each=6))

@@ -8,17 +8,16 @@
 #'   \item{\code{random.terms}}{Vector with the random terms in the design.}
 #'   \item{\code{Nparm}}{Named vector with the number of parameters for the terms.}
 #'   \item{\code{df}}{Named vector with the degrees of freedom for the terms.}
-#'   \item{\code{collinearities}}{Named vector with the number of (approximate) collinearities that have been removed from the terms.}
-#'   \item{\code{SS}}{Named vector with Sum-of-Squares if a response variable was specified.}
-#'   \item{\code{MSS}}{Named vector with Mean-Sum-of-Squares if a response variable was specified.}
+#'   \item{\code{SS}}{Named matrix with Sum-of-Squares if a response variable was specified.}
+#'   \item{\code{MSS}}{Named matrix with Mean-Sum-of-Squares if a response variable was specified.}
 #'   \item{\code{relations}}{Named matrix with relations between variables with the following interpretation: "0"=linear indepent, "<"=row term is a subspace of column, "<-"=row term is a subspace of column term and no other terms are inbetween, ">" and "->" the similar interpretatioin between columns and rows, name=name of minimum between row and column term.}
-#'   \item{\code{pvalue}}{Named matrix with p-values for F-tests. p-values are stated at the collapsed nesting, but F-test are done against the most coarse nested random effect.}
+#'   \item{\code{pvalue}}{Named matrix with p-values for Type-I F-tests. p-values are stated at the collapsed nesting, but F-test are done against the most coarse nested random effect.}
 #'   \item{\code{inner}}{Named matrix of squared inner products of subspaces with nesting subspaces removed. Rouded at 6'th digits, and used to decide orthogonality of the design.}
 #'   \item{\code{response}}{Logical stating whether a response variable was present.}
 #' }
 #' 
 #' @param x object of class \code{designDiagram}
-#' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares. The two latter options are only available if a response variable was specified for the design. Defaults to \code{"none"}.
+#' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"III"}=TO BE DESCRIBED. The three latter options are only available if a response variable was specified for the design. Defaults to \code{"none"}.
 #' @param pvalue boolean specifying whether p-values should be inserted on the graphs. This is only possible if a response variable was specified. Defaults to \code{TRUE} is \code{circle="MSS"} and \code{FALSE} otherwise.
 #' @param kill.intercept boolean specifying whether circle for the intercept should be removed. This is practicable since the intercept term otherwise may overweight the remaining terms. Defaults to \code{TRUE}.
 #' @param color color of circles. Defaults to \code{"lightgreen"} for Sum-of-Squares and to \code{"lightblue"} for Mean-Sum-of-Squares.
@@ -43,7 +42,7 @@ print.designDiagram <- function(x,...) {
   } else {
     cat("Orthogonal design with dimensions:\n")
   }
-  print(rbind(Nparm=x$Nparm,df=x$df,Ncol=x$collinearities))
+  print(rbind(Nparm=x$Nparm,df=x$df))
 }
 
 
@@ -56,7 +55,7 @@ summary.designDiagram <- function(x,...) {
   } else {
     cat("Orthogonal design with dimensions:\n")
   }
-  print(rbind(Nparm=x$Nparm,df=x$df,Ncol=x$collinearities))
+  print(rbind(Nparm=x$Nparm,df=x$df))
   
   # Table of inner products
   if (any(x$inner[upper.tri(x$inner)]!=0)) {
@@ -77,8 +76,8 @@ summary.designDiagram <- function(x,...) {
   if (!x$response) {
     cat("No response variable specified.\n")
   } else {
-    cat("Orthogonal decomposition of response variable:\n")
-    print(rbind(SS=x$SS,MSS=x$MSS))
+    cat("Type-I orthogonal decomposition of response variable:\n")
+    print(rbind(SS=x$SS[1,],MSS=x$MSS[1,]))
     cat("\n")
     cat("P-values for F-tests against nested random effect:\n")
     print(signif(x$pvalue,6))
@@ -100,7 +99,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),kill.inter
   g.df$pvalue[g.df$pvalue=="p=NA"] <- NA 
   
   # Sugiyama layout scaled in box specified by xlim and ylim
-  g <- create_layout(g.df,"sugiyama",maxiter=200)
+  g <- create_layout(g.df,"sugiyama")
   if (horizontal) {
     tmp <- g$x
     g$x <- -g$y
@@ -127,7 +126,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),kill.inter
     max.r <- circle.scaling*0.5*sqrt(outer(g$x,g$x,"-")^2 + outer(g$y,g$y,"-")^2)
     max.r <- min(max.r[upper.tri(max.r)])
     # find circle radii
-    if (circle=="SS") {area <- x$SS} else {area <- x$MSS}
+    if (circle=="SS") {area <- x$SS[1,]} else {area <- x$MSS[1,]}
     if (kill.intercept & (is.element("1",names(area)))) area["1"] <- 0
     g$r <- (max.r*sqrt(area/max(area,na.rm=TRUE)))[as.numeric(g$name)]
     g$r[is.na(g$r)] <- 0
@@ -146,6 +145,41 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),kill.inter
     p <- p + geom_node_circle(aes(r=r),col=color,fill=color) +
       coord_fixed()
   }
+  # UNDER CONSTRUCTION ...
+  if (is.element(circle,c("SS.col"))) {
+    max.r <- circle.scaling*0.5*sqrt(outer(g$x,g$x,"-")^2 + outer(g$y,g$y,"-")^2)
+    max.r <- min(max.r[upper.tri(max.r)])
+    ii <- apply(x$SS,2,function(y){min(which(diff(c(y[!is.na(y)],-1))<0))})
+    p <- p + geom_blank(aes(col=variable,fill=variable),data.frame(variable=factor(colnames(x$SS),levels=colnames(x$SS))))
+    # filled bullseye
+    for (i in max(ii):1) {
+      mydf <- g[order(g$name),]
+      mydf <- mydf[ii>=i,]
+      area <- x$SS[i,ii>=i]
+      mydf$r <- max.r*sqrt(area/max(x$SS,na.rm=TRUE))
+      if (i > 1) {
+        mydf$variable <- factor(rownames(x$SS)[i],levels=colnames(x$SS))
+      } else {
+        mydf$variable <- factor(colnames(x$SS),levels=colnames(x$SS))
+      }
+      p <- p + geom_node_circle(aes(col=variable,fill=variable),data=mydf)
+    }
+    # circumference bullseye
+    for (i in nrow(x$SS):2) {
+      # TO DO: What is nrow(x$SS)=1 ??
+      mydf <- g[order(g$name),]
+      mydf <- mydf[(i > ii) & (!is.na(x$SS[i,])),]
+      if (nrow(mydf)>0) {
+        area <- x$SS[i,(i > ii) & (!is.na(x$SS[i,]))]
+        mydf$r <- max.r*sqrt(area/max(x$SS,na.rm=TRUE))
+        mydf$variable <- factor(rownames(x$SS)[i],levels=colnames(x$SS))
+        p <- p + geom_node_circle(aes(col=variable),data=mydf,lty=2)
+      }
+    }
+    # coord fixed
+    p <- p + coord_fixed()
+  }
+  # ...
   p <- p + geom_node_text(aes(x=x,y=y,label=text),parse=TRUE)
   p <- p + geom_edge_link(aes(start_cap=label_rect(node1.text0),
                               end_cap=label_rect(node2.text0)),
