@@ -8,6 +8,8 @@
 #' @param fixed formula with fixed effects. A response may the specified, but this optional.
 #' @param random formula with random effects. Defaults to \code{NULL} meaning that there are no other random effects than the residual, which is added to all designs.
 #' @param data data frame with the explanatory variables and the response (if specified).
+#' @param keep formula with effects that will not be removed in the collinarity analysis. Defaults to \code{~1} meaning that the intercept will be kept if it is present.
+#' @param center boolean deciding whether to centralize numerical predictors when an intercept is present. Defaults to \code{TRUE}.
 #' @param eps threshold for deeming singular values to be "zero". Defaults to 1e-12.
 #' 
 #' @return An object of class \code{\link{designDiagram-class}}
@@ -52,11 +54,12 @@
 #' }
 #' 
 #' @export
-DD <- function(fixed,random=NULL,data,eps=1e-12) {
+DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   # sanity check
   if (class(fixed)!="formula") stop("fixed-argument must be a formula")
   if ((!is.null(random)) && (class(random)!="formula")) stop("random-argument must be a formula")
   if (!is.data.frame(data)) stop("data-argument must be a data frame")
+  if (class(keep)!="formula") stop("keep-argument must be a formula")
   
   # -------------------------
   # Initialize
@@ -64,7 +67,12 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   
   # find terms in the design and place square brackets around random terms
   myterms <- attr(terms(fixed,keep.order=TRUE),"term.labels")
-  if (attr(terms(fixed),"intercept")==1) myterms <- c("1",myterms)
+  if (attr(terms(fixed),"intercept")==1) {
+    myterms <- c("1",myterms)
+  } else {
+    # if no intercept, then centralization is switched off!
+    center <- FALSE
+  }
   if (is.null(random)) {myterms.random <- NULL} else {
     myterms.random <- setdiff(attr(terms(random,keep.order=TRUE),"term.labels"),myterms)
     if (length(myterms.random)>0) {
@@ -74,10 +82,16 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   }
   M <- length(myterms)
 
+  # stop if no terms
+  # TO DO: Should we allow for M=0 below? If so, then updates required
+  if (M==0) stop("There should be at least one term (including the intercept)")
+
   # find number of complete observations
   N <- nrow(model.frame(formula(paste0("~",paste(sub("[","",sub("]","",myterms,fixed=TRUE),fixed=TRUE),collapse="+"))),data))
-  
+
   # extract response variable if it is present
+  # To DO: also take care of missing observations in N and designs
+  #        Presumably this should be done by subsetting data to complete cases
   y <- model.response(model.frame(fixed,data))
   
   # make design matrices for each of the terms
@@ -88,6 +102,10 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
     tmp <- sub("[","",sub("]","",myterms[i],fixed=TRUE),fixed=TRUE)
     # make design matrix
     A <- model.matrix(as.formula(paste0("~0+",tmp)),data=data)
+    # centralize numerical variables?
+    if (center & (tmp!="1") & (is.null(attr(A,"contrasts")))) {
+      A <- apply(A,2,function(y){y-mean(y,na.rm=TRUE)})
+    }
     # remove non-needed attributed
     attr(A,"assign") <- NULL
     attr(A,"contrasts") <- NULL
@@ -257,11 +275,10 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   mydesigns <- mydesigns[myorder]
   
 
-  # ----------------------------------
-  # Compute summaries and statistics
-  # ----------------------------------
-
+  # -----------------------------------
   # Extend with the identity variable
+  # -----------------------------------
+  
   # TO DO: What is the identity variable is already included!?
   #        Then it will have df=0, but what does this imply??
   myterms.random <- c(myterms.random,"[I]")
@@ -277,7 +294,11 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   relations.ghost[mydf==0,] <- "df=0"
   relations.ghost[,mydf==0] <- "df=0"
   
-  # Identify arrows: Should be run after computation of degrees of freedom
+  # -----------------
+  # Identify arrows
+  # -----------------
+  
+  # Should be run after computation of degrees of freedom
   for (i in 1:M) {
     below <- (relations[i,]==">")
     if (any(below)) {
@@ -296,34 +317,51 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
       relations.ghost[below,i] <- "<-"
     }
   }
+
+  # ----------------------------------
+  # Compute summaries and statistics
+  # ----------------------------------
+
+  # find terms to be removed in the collinearity analysis
+  # NB: placed here to ensure same ordering as in myterms
+  myterms.remove <- setdiff(myterms,attr(terms(keep,keep.order=TRUE),"term.labels"))
+  if (attr(terms(keep),"intercept")==1) myterms.remove <- setdiff(myterms.remove,"1")
+  myterms.remove <- setdiff(myterms.remove,"[I]")
   
   # Find projections onto basis functions and make Type-I F-tests
   pvalue <- matrix(NA,M,M)
-  SS     <- matrix(NA,M,M)
-  MSS    <- matrix(NA,M)
+  ii     <- 1+length(myterms.remove)
+  SS     <- matrix(NA,ii,M)
+  df.tmp <- matrix(NA,ii,M)
+  
   if (!is.null(y)) {
     # find orthogonal basis
-    if (M>1) for (i in 1:(M-1)) {
-      for (j in i:(M-1)) {
-        if (i==j) {
+    if (M>1) for (i in 1:ii) {
+      for (j in setdiff(1:(M-1),match(myterms.remove[0:(i-1)],myterms))) {
+        # terms to remove 
+        k <- setdiff(0:(j-1),c(0,match(myterms.remove[0:(i-1)],myterms)))
+        # find basis for orthogonal complement
+        if (length(k)==0) {
           A <- mydesigns[[j]]
         } else {
-          tmp <- svd(do.call("cbind",mydesigns[i:(j-1)]),nv=0)
+          tmp <- svd(do.call("cbind",mydesigns[k]),nv=0)
           B <- tmp$u[,tmp$d>eps,drop=FALSE]
           A <- mydesigns[[j]]-B%*%t(B)%*%mydesigns[[j]]
           tmp <- svd(A,nv=0)
           A <- tmp$u[,tmp$d>eps,drop=FALSE]
         }
+        # compute sum-of-squares
         SS[i,j] <- sum(c(y%*%A)^2)
+        df.tmp[i,j] <- ncol(A)
       }
     }
     # Residual SS
-    SS[M,M] <- sum(y^2)
-    SS[1:(M-1),M] <- SS[M,M]-rowSums(SS[1:(M-1),1:(M-1)],na.rm=TRUE)
-
+    SS[,M]     <- sum(y^2) - rowSums(SS[,1:(M-1),drop=FALSE],na.rm=TRUE)
+    df.tmp[,M] <- length(y) - rowSums(df.tmp[,1:(M-1),drop=FALSE],na.rm=TRUE)
+    
     # Compute MSS
-    MSS <- SS*matrix(rep(ifelse(mydf>0,1/mydf,0),each=M),M,M)
-
+    MSS <- SS/df.tmp
+    
     # F-tests only for terms with positive degrees of freedom, which have
     # only one term nested within them.
     for (i in which((mydf>0) & apply(relations.ghost,1,function(x){sum(x=="<-")})==1)) {
@@ -346,7 +384,7 @@ DD <- function(fixed,random=NULL,data,eps=1e-12) {
   names(myterms) <- names(Nparm) <- names(mydf) <- 
     colnames(SS) <- colnames(MSS) <- rownames(relations) <- colnames(relations) <- 
     rownames(pvalue) <- colnames(pvalue) <- myterms
-  rownames(SS) <- rownames(MSS) <- c("-",myterms[-M])
+  rownames(SS) <- rownames(MSS) <- c("-",myterms.remove)
   rownames(inner) <- colnames(inner) <- names(mydesigns) <- myterms[-M]
   res <- list(terms=myterms,random.terms=myterms.random,Nparm=Nparm,df=mydf,
               SS=SS,MSS=MSS,relations=relations,pvalue=pvalue,

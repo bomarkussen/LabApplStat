@@ -173,7 +173,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),kill.inter
         area <- x$SS[i,(i > ii) & (!is.na(x$SS[i,]))]
         mydf$r <- max.r*sqrt(area/max(x$SS,na.rm=TRUE))
         mydf$variable <- factor(rownames(x$SS)[i],levels=colnames(x$SS))
-        p <- p + geom_node_circle(aes(col=variable),data=mydf,lty=2)
+        p <- p + geom_node_circle(aes(col=variable),data=mydf,lty=2,lwd=1.2)
       }
     }
     # coord fixed
