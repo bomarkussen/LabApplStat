@@ -19,8 +19,9 @@
 #' @param x object of class \code{designDiagram}
 #' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"III"}=TO BE DESCRIBED. The three latter options are only available if a response variable was specified for the design. Defaults to \code{"none"}.
 #' @param pvalue boolean specifying whether p-values should be inserted on the graphs. This is only possible if a response variable was specified. Defaults to \code{TRUE} is \code{circle="MSS"} and \code{FALSE} otherwise.
-#' @param kill.intercept boolean specifying whether circle for the intercept should be removed. This is practicable since the intercept term otherwise may overweight the remaining terms. Defaults to \code{TRUE}.
-#' @param color color of circles. Defaults to \code{"lightgreen"} for Sum-of-Squares and to \code{"lightblue"} for Mean-Sum-of-Squares.
+#' @param kill formula specifying which cirlces not to plot. Defaults to \code{~1} corresponding to not plotting the intercept term (that otherwise may overweight the remaining terms).
+#' @param ca boolean deciding whether colinearity analysis is visualized. Defauls to \code{TRUE}.
+#' @param color color of circles when \code{ca=FALSE}. Defaults to \code{"lightgreen"} for Sum-of-Squares and to \code{"lightblue"} for Mean-Sum-of-Squares.
 #' @param circle.scaling numeric specifying size scaling of circles. Defaults to \code{1}, which corresponds to the largest circle having a radius that is half of the shortest distance between two nodes.
 #' @param arrow.type specifying arrow heads via \code{\link{arrow}}. Defaults to \code{arrow(angle=20,length=unit(4,"mm"))}.
 #' @param xlim x-range of diagram plot. Defaults to \code{c(0,1)}.
@@ -86,7 +87,8 @@ summary.designDiagram <- function(x,...) {
 
 #' @rdname designDiagram-class
 #' @export
-plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),kill.intercept=TRUE,
+plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
+                               kill=~1,ca=TRUE,
                                color=ifelse(circle=="MSS","lightblue","lightgreen"),
                                circle.scaling=1,
                                arrow.type=arrow(angle=20,length=unit(4,"mm")),
@@ -119,71 +121,83 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),kill.inter
   # Text labels
   g$text  <- paste0('"',x$terms,'"[',x$df,']^',x$Nparm)[as.numeric(g$name)]
   g$text0 <- paste0(x$terms,x$Nparm)[as.numeric(g$name)]
-  
-  # Radii of circles
-  if (is.element(circle,c("SS","MSS"))) {
-    # choose maximal radius
-    max.r <- circle.scaling*0.5*sqrt(outer(g$x,g$x,"-")^2 + outer(g$y,g$y,"-")^2)
-    max.r <- min(max.r[upper.tri(max.r)])
-    # find circle radii
-    if (circle=="SS") {area <- x$SS[1,]} else {area <- x$MSS[1,]}
-    if (kill.intercept & (is.element("1",names(area)))) area["1"] <- 0
-    g$r <- (max.r*sqrt(area/max(area,na.rm=TRUE)))[as.numeric(g$name)]
-    g$r[is.na(g$r)] <- 0
-    g$r[is.nan(g$r)] <- 0
-  } else {
-    g$r <- 0
-  }
-  
+
   # make graph
   p <- ggraph(g) + 
     geom_blank(aes(x=x-0.5*diff(xlim)*grid::convertX(unit(attr(label_rect(text0,fontsize=18),"width"),"cm"),"npc",valueOnly = TRUE),
                    y=y-0.5*diff(ylim)*grid::convertY(unit(attr(label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE))) +
     geom_blank(aes(x=x+0.5*diff(xlim)*grid::convertX(unit(attr(label_rect(text0,fontsize=18),"width"),"cm"),"npc",valueOnly = TRUE),
                    y=y+0.5*diff(ylim)*grid::convertY(unit(attr(label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE)))
+  
+  # Radii of circles
   if (is.element(circle,c("SS","MSS"))) {
-    p <- p + geom_node_circle(aes(r=r),col=color,fill=color) +
-      coord_fixed()
-  }
-  # UNDER CONSTRUCTION ...
-  if (is.element(circle,c("SS.col"))) {
+    # terms that will have circles
+    myterms <- setdiff(x$terms,attr(terms(kill,keep.order=TRUE),"term.labels"))
+    if (attr(terms(kill),"intercept")==1) myterms <- setdiff(myterms,"1")
+
+    # choose maximal radius
     max.r <- circle.scaling*0.5*sqrt(outer(g$x,g$x,"-")^2 + outer(g$y,g$y,"-")^2)
     max.r <- min(max.r[upper.tri(max.r)])
-    ii <- apply(x$SS,2,function(y){min(which(diff(c(y[!is.na(y)],-1))<0))})
-    p <- p + geom_blank(aes(col=variable,fill=variable),data.frame(variable=factor(colnames(x$SS),levels=colnames(x$SS))))
-    # filled bullseye
-    for (i in max(ii):1) {
-      mydf <- g[order(g$name),]
-      mydf <- mydf[ii>=i,]
-      area <- x$SS[i,ii>=i]
-      mydf$r <- max.r*sqrt(area/max(x$SS,na.rm=TRUE))
-      if (i > 1) {
-        mydf$variable <- factor(rownames(x$SS)[i],levels=colnames(x$SS))
-      } else {
-        mydf$variable <- factor(colnames(x$SS),levels=colnames(x$SS))
+    
+    # visualize collinearity analysis?
+    if (ca) {
+      # with collinearity analysis
+      if (circle=="SS") {SS <- x$SS[,myterms,drop=FALSE]} else {SS <- x$MSS[,myterms,drop=FALSE]}
+      ii <- apply(SS,2,function(y){min(which(diff(c(y[!is.na(y)],-1))<0))})
+      # make legend
+      variables <- setdiff(x$terms,setdiff(setdiff(x$terms,myterms),rownames(SS)))
+      p <- p + geom_blank(aes(col=variable,fill=variable),data.frame(variable=factor(variables,levels=variables)))
+      # filled bullseye
+      for (i in max(ii):1) {
+        mydf <- g[order(g$name),]
+        mydf <- mydf[is.element(x$terms,myterms),]
+        mydf <- mydf[ii>=i,]
+        area <- SS[i,ii>=i]
+        mydf$r <- max.r*sqrt(area/max(SS,na.rm=TRUE))
+        if (i > 1) {
+          mydf$variable <- factor(rownames(SS)[i],levels=variables)
+        } else {
+          mydf$variable <- factor(colnames(SS),levels=variables)
+        }
+        p <- p + geom_node_circle(aes(col=variable,fill=variable),data=mydf)
       }
-      p <- p + geom_node_circle(aes(col=variable,fill=variable),data=mydf)
-    }
-    # circumference bullseye
-    for (i in nrow(x$SS):2) {
-      # TO DO: What is nrow(x$SS)=1 ??
-      mydf <- g[order(g$name),]
-      mydf <- mydf[(i > ii) & (!is.na(x$SS[i,])),]
-      if (nrow(mydf)>0) {
-        area <- x$SS[i,(i > ii) & (!is.na(x$SS[i,]))]
-        mydf$r <- max.r*sqrt(area/max(x$SS,na.rm=TRUE))
-        mydf$variable <- factor(rownames(x$SS)[i],levels=colnames(x$SS))
-        p <- p + geom_node_circle(aes(col=variable),data=mydf,lty=2,lwd=1.2)
+      # circumference bullseye
+      for (i in nrow(SS):2) {
+        # TO DO: What is nrow(x$SS)=1 ??
+        mydf <- g[order(g$name),]
+        mydf <- mydf[is.element(x$terms,myterms),]
+        mydf <- mydf[(i > ii) & (!is.na(SS[i,])),]
+        if (nrow(mydf)>0) {
+          area <- SS[i,(i > ii) & (!is.na(SS[i,]))]
+          mydf$r <- max.r*sqrt(area/max(SS,na.rm=TRUE))
+          mydf$variable <- factor(rownames(SS)[i],levels=variables)
+          p <- p + geom_node_circle(aes(col=variable),data=mydf,lty=2,lwd=1.2)
+        }
       }
+      # coord fixed
+      p <- p + coord_fixed()
+    } else {
+      # without collinearity analysis
+      if (circle=="SS") {area <- x$SS[1,myterms]} else {area <- x$MSS[1,myterms]}
+      mydf <- g[order(g$name),]
+      mydf <- mydf[is.element(x$terms,myterms),]
+      mydf$r <- max.r*sqrt(area/max(area,na.rm=TRUE))
+
+      # add circles
+      p <- p + geom_node_circle(aes(r=r),data=mydf,col=color,fill=color) +
+        coord_fixed()
     }
-    # coord fixed
-    p <- p + coord_fixed()
   }
-  # ...
+
+  # add term names, number of parameters and degrees of freedom
   p <- p + geom_node_text(aes(x=x,y=y,label=text),parse=TRUE)
+  
+  # add arrows
   p <- p + geom_edge_link(aes(start_cap=label_rect(node1.text0),
                               end_cap=label_rect(node2.text0)),
                           arrow=arrow.type)
+  
+  # add p-values
   if (pvalue) {
     p <- p + geom_label(aes(x=(xend+x)/2, 
                             y=(yend+y)/2 - diff(ylim)*grid::convertY(unit(4,"mm"),"npc",valueOnly=TRUE)*(yend==y), label=pvalue), get_edges(),
