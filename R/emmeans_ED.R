@@ -13,6 +13,8 @@
 #' 
 #' @author Bo Markussen
 #' 
+#' @importFrom stats make.link
+#' @importFrom emmeans emmeans
 #' @export 
 emmeans_ED <- function(object,specs,left,right,tran=NULL,p=0.5,p.name="probability") {
   # Find reference grids

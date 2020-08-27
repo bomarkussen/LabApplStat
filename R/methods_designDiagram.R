@@ -20,7 +20,8 @@
 #' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"III"}=TO BE DESCRIBED. The three latter options are only available if a response variable was specified for the design. Defaults to \code{"none"}.
 #' @param pvalue boolean specifying whether p-values should be inserted on the graphs. This is only possible if a response variable was specified. Defaults to \code{TRUE} is \code{circle="MSS"} and \code{FALSE} otherwise.
 #' @param kill formula specifying which cirlces not to plot. Defaults to \code{~1} corresponding to not plotting the intercept term (that otherwise may overweight the remaining terms).
-#' @param ca boolean deciding whether colinearity analysis is visualized. Defauls to \code{TRUE}.
+#' @param ca boolean deciding whether collinearity analysis is visualized. Defauls to \code{TRUE}.
+#' @param relative positive numeric, which specifies needed relative increase for an area to be visualized in the collinearity analysis. Defaults to \code{0.01}.
 #' @param color color of circles when \code{ca=FALSE}. Defaults to \code{"lightgreen"} for Sum-of-Squares and to \code{"lightblue"} for Mean-Sum-of-Squares.
 #' @param circle.scaling numeric specifying size scaling of circles. Defaults to \code{1}, which corresponds to the largest circle having a radius that is half of the shortest distance between two nodes.
 #' @param arrow.type specifying arrow heads via \code{\link{arrow}}. Defaults to \code{arrow(angle=20,length=unit(4,"mm"))}.
@@ -52,11 +53,15 @@ print.designDiagram <- function(x,...) {
 summary.designDiagram <- function(x,...) {
   # Table of dimensions
   if (any(x$inner[upper.tri(x$inner)]!=0)) {
-    cat("Non-orthogonal design with dimensions:\n")
+    cat("Non-orthogonal design with specifications:\n")
   } else {
-    cat("Orthogonal design with dimensions:\n")
+    cat("Orthogonal design with specifications:\n")
   }
-  print(rbind(Nparm=x$Nparm,df=x$df))
+  if (!x$response) {
+    print(rbind(Nparm=x$Nparm,df=x$df))
+  } else {
+    print(rbind(Nparm=x$Nparm,df=x$df,SS=x$SS[1,],MSS=x$MSS[1,]))
+  }
   
   # Table of inner products
   if (any(x$inner[upper.tri(x$inner)]!=0)) {
@@ -67,28 +72,26 @@ summary.designDiagram <- function(x,...) {
     print(x$inner)
   }
   
-  # Table of relations
-  cat("\n")
-  cat("Table of relations:\n")
-  print(x$relations)
-  
   # Additional output if response is present
   cat("\n")
   if (!x$response) {
     cat("No response variable specified.\n")
   } else {
-    cat("Type-I orthogonal decomposition of response variable:\n")
-    print(rbind(SS=x$SS[1,],MSS=x$MSS[1,]))
     cat("\n")
     cat("P-values for F-tests against nested random effect:\n")
     print(signif(x$pvalue,6))
   }
+  
+  # Table of relations
+  cat("\n")
+  cat("Table of relations:\n")
+  print(x$relations)
 }
 
 #' @rdname designDiagram-class
 #' @export
 plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
-                               kill=~1,ca=TRUE,
+                               kill=~1,ca=TRUE,relative=0.01,
                                color=ifelse(circle=="MSS","lightblue","lightgreen"),
                                circle.scaling=1,
                                arrow.type=arrow(angle=20,length=unit(4,"mm")),
@@ -149,10 +152,17 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
       p <- p + geom_blank(aes(col=variable,fill=variable),data.frame(variable=factor(variables,levels=variables)))
       # filled bullseye
       for (i in max(ii):1) {
+        # which variables should be shown?
+        if (i==1) {
+          jj <- (ii>=i) 
+        } else {
+          jj <- (ii>=i) & ((SS[i,]-SS[1,])/SS[1,] > relative)
+        }
+        # find radii
         mydf <- g[order(g$name),]
         mydf <- mydf[is.element(x$terms,myterms),]
-        mydf <- mydf[ii>=i,]
-        area <- SS[i,ii>=i]
+        mydf <- mydf[jj,]
+        area <- SS[i,jj]
         mydf$r <- max.r*sqrt(area/max(SS,na.rm=TRUE))
         if (i > 1) {
           mydf$variable <- factor(rownames(SS)[i],levels=variables)
@@ -163,12 +173,16 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
       }
       # circumference bullseye
       for (i in nrow(SS):2) {
+        # which variables should be shown?
         # TO DO: What is nrow(x$SS)=1 ??
+        jj <- (i>ii) & ((SS[i,]-SS[cbind(ii,1:length(ii))])/SS[cbind(ii,1:length(ii))] > relative)
+        jj <- jj & (!is.na(jj))
+        # find radii
         mydf <- g[order(g$name),]
         mydf <- mydf[is.element(x$terms,myterms),]
-        mydf <- mydf[(i > ii) & (!is.na(SS[i,])),]
+        mydf <- mydf[jj,]
         if (nrow(mydf)>0) {
-          area <- SS[i,(i > ii) & (!is.na(SS[i,]))]
+          area <- SS[i,jj]
           mydf$r <- max.r*sqrt(area/max(SS,na.rm=TRUE))
           mydf$variable <- factor(rownames(SS)[i],levels=variables)
           p <- p + geom_node_circle(aes(col=variable),data=mydf,lty=2,lwd=1.2)
