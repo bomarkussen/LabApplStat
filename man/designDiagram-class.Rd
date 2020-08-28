@@ -9,7 +9,7 @@
 \usage{
 \method{print}{designDiagram}(x, ...)
 
-\method{summary}{designDiagram}(x, ...)
+\method{summary}{designDiagram}(object, ...)
 
 \method{plot}{designDiagram}(
   x,
@@ -23,11 +23,16 @@
   arrow.type = arrow(angle = 20, length = unit(4, "mm")),
   xlim = c(0, 1),
   ylim = c(0, 1),
-  horizontal = TRUE
+  horizontal = TRUE,
+  ...
 )
 }
 \arguments{
 \item{x}{object of class \code{designDiagram}}
+
+\item{...}{not used.}
+
+\item{object}{object of class \code{designDiagram}}
 
 \item{circle}{character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"III"}=TO BE DESCRIBED. The three latter options are only available if a response variable was specified for the design. Defaults to \code{"none"}.}
 
@@ -43,7 +48,7 @@
 
 \item{circle.scaling}{numeric specifying size scaling of circles. Defaults to \code{1}, which corresponds to the largest circle having a radius that is half of the shortest distance between two nodes.}
 
-\item{arrow.type}{specifying arrow heads via \code{\link{arrow}}. Defaults to \code{arrow(angle=20,length=unit(4,"mm"))}.}
+\item{arrow.type}{specifying arrow heads via \code{\link[grid]{arrow}}. Defaults to \code{arrow(angle=20,length=unit(4,"mm"))}.}
 
 \item{xlim}{x-range of diagram plot. Defaults to \code{c(0,1)}.}
 

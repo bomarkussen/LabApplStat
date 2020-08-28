@@ -13,9 +13,6 @@
 #' 
 #' @author Bo Markussen
 #'
-#' @seealso
-#' \code{\link{compare}}
-#' 
 #' @examples 
 #' x <- rep(c("boy","girl","adult","adult"),4)
 #' y <- rep(c("child","child","man","woman"),4)

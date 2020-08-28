@@ -26,9 +26,6 @@ minimum(x,y)
 minimum(x,y,FALSE)
 
 }
-\seealso{
-\code{\link{compare}}
-}
 \author{
 Bo Markussen
 }

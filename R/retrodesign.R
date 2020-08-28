@@ -25,14 +25,16 @@
 #' @author Bo Markussen  
 #' 
 #' @examples 
+#' # Basic design
 #' mydata <- retrodesign(c(seq(0,1,0.01),seq(1,10,0.1),100),1)
 #' 
 #' # Type S error
-#' library(ggplot2)
-#' ggplot(mydata,aes(x=power,y=typeS)) + geom_line() + xlab("Power") + ylab("Type S error")
-#'
+#' plot(typeS~power,xlab="Power",ylab="Type S error",type="l",data=mydata)
+#' 
 #' # Type M error
-#' ggplot(mydata,aes(x=power,y=exaggeration)) + geom_line() + xlab("Power") + ylab("Exaggeration ratio") + ylim(c(0,12)) + geom_abline(slope=0,intercept=1,linetype=2)
+#' plot(exaggeration~power,xlab="Power",ylab="Exaggeration ratio",ylim=c(0,12),type="l",
+#' data=mydata)
+#' abline(1,0,lty=2)
 #' 
 #' @export 
 retrodesign <- function(A, SE=1, sig.level=0.05, df=Inf, B=10000){

@@ -332,6 +332,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   pvalue <- matrix(NA,M,M)
   ii     <- 1+length(myterms.remove)
   SS     <- matrix(NA,ii,M)
+  MSS    <- matrix(NA,ii,M)
   df.tmp <- matrix(NA,ii,M)
   
   if (!is.null(y)) {

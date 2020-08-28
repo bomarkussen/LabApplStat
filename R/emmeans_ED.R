@@ -13,17 +13,15 @@
 #' 
 #' @author Bo Markussen
 #' 
-#' @importFrom stats make.link
-#' @importFrom emmeans emmeans
 #' @export 
 emmeans_ED <- function(object,specs,left,right,tran=NULL,p=0.5,p.name="probability") {
   # Find reference grids
-  suppressMessages(em0 <- emmeans::emmeans(object,specs,at=left))
-  suppressMessages(em1 <- emmeans::emmeans(object,specs,at=right))
+  suppressMessages(em0 <- emmeans(object,specs,at=left))
+  suppressMessages(em1 <- emmeans(object,specs,at=right))
   # Find intercept
   if (is.null(em0@misc$tran))      intercept <- p
   if (is.list(em0@misc$tran))      intercept <- em0@misc$tran$linkfun(p)
-  if (is.character(em0@misc$tran)) intercept <- make.link(em0@misc$tran)$linkfun(p)
+  if (is.character(em0@misc$tran)) intercept <- stats::make.link(em0@misc$tran)$linkfun(p)
   # Find variables and levels
   pri.vars <- em0@misc$pri.vars
   by.vars  <- em0@misc$by.vars
@@ -100,7 +98,7 @@ emmeans_ED <- function(object,specs,left,right,tran=NULL,p=0.5,p.name="probabili
                   famSize = nrow(em@linfct), avgd.over = character(0), 
                   pri.vars = pri.vars, by.vars = by.vars,
                   methDesc = "emmobj")
-  if (!is.null(tran)) em <- update(em,tran=tran)
+  if (!is.null(tran)) em <- stats::update(em,tran=tran)
   # return result
   return(em)
 }

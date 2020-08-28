@@ -17,6 +17,7 @@
 #' }
 #' 
 #' @param x object of class \code{designDiagram}
+#' @param object object of class \code{designDiagram}
 #' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"III"}=TO BE DESCRIBED. The three latter options are only available if a response variable was specified for the design. Defaults to \code{"none"}.
 #' @param pvalue boolean specifying whether p-values should be inserted on the graphs. This is only possible if a response variable was specified. Defaults to \code{TRUE} is \code{circle="MSS"} and \code{FALSE} otherwise.
 #' @param kill formula specifying which cirlces not to plot. Defaults to \code{~1} corresponding to not plotting the intercept term (that otherwise may overweight the remaining terms).
@@ -24,18 +25,16 @@
 #' @param relative positive numeric, which specifies needed relative increase for an area to be visualized in the collinearity analysis. Defaults to \code{0.01}.
 #' @param color color of circles when \code{ca=FALSE}. Defaults to \code{"lightgreen"} for Sum-of-Squares and to \code{"lightblue"} for Mean-Sum-of-Squares.
 #' @param circle.scaling numeric specifying size scaling of circles. Defaults to \code{1}, which corresponds to the largest circle having a radius that is half of the shortest distance between two nodes.
-#' @param arrow.type specifying arrow heads via \code{\link{arrow}}. Defaults to \code{arrow(angle=20,length=unit(4,"mm"))}.
+#' @param arrow.type specifying arrow heads via \code{\link[grid]{arrow}}. Defaults to \code{arrow(angle=20,length=unit(4,"mm"))}.
 #' @param xlim x-range of diagram plot. Defaults to \code{c(0,1)}.
 #' @param ylim y-range of diagram plot. Defaults to \code{c(0,1)}.
 #' @param horizontal boolen specifying if the design diagram should be drawn horizontally or vertically. Defauls to \code{TRUE}.
+#' @param ... not used.
 #' 
 #' @seealso \code{\link{DD}}
 #' 
-#' @importFrom stats as.formula formula model.frame model.matrix model.response pf pt qt quantile r2dtable rmultinom rt terms
-#' @importFrom ggplot2 unit geom_blank geom_label coord_fixed 
-#' @importFrom ggraph create_layout ggraph geom_node_circle geom_node_text geom_edge_link label_rect 
-#' @importFrom grid convertX convertY
 #' @rdname designDiagram-class
+#' 
 #' @export
 print.designDiagram <- function(x,...) {
   # Table of dimensions
@@ -50,42 +49,42 @@ print.designDiagram <- function(x,...) {
 
 #' @rdname designDiagram-class
 #' @export
-summary.designDiagram <- function(x,...) {
+summary.designDiagram <- function(object,...) {
   # Table of dimensions
-  if (any(x$inner[upper.tri(x$inner)]!=0)) {
+  if (any(object$inner[upper.tri(object$inner)]!=0)) {
     cat("Non-orthogonal design with specifications:\n")
   } else {
     cat("Orthogonal design with specifications:\n")
   }
-  if (!x$response) {
-    print(rbind(Nparm=x$Nparm,df=x$df))
+  if (!object$response) {
+    print(rbind(Nparm=object$Nparm,df=object$df))
   } else {
-    print(rbind(Nparm=x$Nparm,df=x$df,SS=x$SS[1,],MSS=x$MSS[1,]))
+    print(rbind(Nparm=object$Nparm,df=object$df,SS=object$SS[1,],MSS=object$MSS[1,]))
   }
   
   # Table of inner products
-  if (any(x$inner[upper.tri(x$inner)]!=0)) {
+  if (any(object$inner[upper.tri(object$inner)]!=0)) {
     cat("\n")
     cat("Note: Sum-of-Squares and p-values may depend on order of terms in an non-orthogonal design.\n")
     cat("\n")
     cat("Total inner products between subspaces (used to decide orthogonality):\n")
-    print(x$inner)
+    print(object$inner)
   }
   
   # Additional output if response is present
   cat("\n")
-  if (!x$response) {
+  if (!object$response) {
     cat("No response variable specified.\n")
   } else {
     cat("\n")
     cat("P-values for F-tests against nested random effect:\n")
-    print(signif(x$pvalue,6))
+    print(signif(object$pvalue,6))
   }
   
   # Table of relations
   cat("\n")
   cat("Table of relations:\n")
-  print(x$relations)
+  print(object$relations)
 }
 
 #' @rdname designDiagram-class
@@ -96,7 +95,11 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
                                circle.scaling=1,
                                arrow.type=arrow(angle=20,length=unit(4,"mm")),
                                xlim=c(0,1),ylim=c(0,1),
-                               horizontal=TRUE) {
+                               horizontal=TRUE,
+                               ...) {
+  # Hack of issue "no visible binding for global variable":
+  node1.text0 <- node2.text0 <- r <- text0 <- variable <- xend <- y <- yend <- NULL
+  
   # data frame with edges 
   g.df <- data.frame(from=as.character(1+(which(x$relations=="<-")-1)%/%length(x$terms)),
                      to=as.character(1+(which(x$relations=="<-")-1)%%length(x$terms)),
@@ -104,7 +107,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
   g.df$pvalue[g.df$pvalue=="p=NA"] <- NA 
   
   # Sugiyama layout scaled in box specified by xlim and ylim
-  g <- create_layout(g.df,"sugiyama")
+  g <- ggraph::create_layout(g.df,"sugiyama")
   if (horizontal) {
     tmp <- g$x
     g$x <- -g$y
@@ -126,11 +129,11 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
   g$text0 <- paste0(x$terms,x$Nparm)[as.numeric(g$name)]
 
   # make graph
-  p <- ggraph(g) + 
-    geom_blank(aes(x=x-0.5*diff(xlim)*grid::convertX(unit(attr(label_rect(text0,fontsize=18),"width"),"cm"),"npc",valueOnly = TRUE),
-                   y=y-0.5*diff(ylim)*grid::convertY(unit(attr(label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE))) +
-    geom_blank(aes(x=x+0.5*diff(xlim)*grid::convertX(unit(attr(label_rect(text0,fontsize=18),"width"),"cm"),"npc",valueOnly = TRUE),
-                   y=y+0.5*diff(ylim)*grid::convertY(unit(attr(label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE)))
+  p <- ggraph::ggraph(g) + 
+    geom_blank(aes(x=x-0.5*diff(xlim)*grid::convertX(unit(attr(ggraph::label_rect(text0,fontsize=18),"width"),"cm"),"npc",valueOnly = TRUE),
+                        y=y-0.5*diff(ylim)*grid::convertY(unit(attr(ggraph::label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE))) +
+    geom_blank(aes(x=x+0.5*diff(xlim)*grid::convertX(unit(attr(ggraph::label_rect(text0,fontsize=18),"width"),"cm"),"npc",valueOnly = TRUE),
+                        y=y+0.5*diff(ylim)*grid::convertY(unit(attr(ggraph::label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE)))
   
   # Radii of circles
   if (is.element(circle,c("SS","MSS"))) {
@@ -169,7 +172,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
         } else {
           mydf$variable <- factor(colnames(SS),levels=variables)
         }
-        p <- p + geom_node_circle(aes(col=variable,fill=variable),data=mydf)
+        p <- p + ggraph::geom_node_circle(aes(col=variable,fill=variable),data=mydf)
       }
       # circumference bullseye
       for (i in nrow(SS):2) {
@@ -185,7 +188,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
           area <- SS[i,jj]
           mydf$r <- max.r*sqrt(area/max(SS,na.rm=TRUE))
           mydf$variable <- factor(rownames(SS)[i],levels=variables)
-          p <- p + geom_node_circle(aes(col=variable),data=mydf,lty=2,lwd=1.2)
+          p <- p + ggraph::geom_node_circle(aes(col=variable),data=mydf,lty=2,lwd=1.2)
         }
       }
       # coord fixed
@@ -198,24 +201,24 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
       mydf$r <- max.r*sqrt(area/max(area,na.rm=TRUE))
 
       # add circles
-      p <- p + geom_node_circle(aes(r=r),data=mydf,col=color,fill=color) +
+      p <- p + ggraph::geom_node_circle(aes(r=r),data=mydf,col=color,fill=color) +
         coord_fixed()
     }
   }
 
   # add term names, number of parameters and degrees of freedom
-  p <- p + geom_node_text(aes(x=x,y=y,label=text),parse=TRUE)
+  p <- p + ggraph::geom_node_text(aes(x=x,y=y,label=text),parse=TRUE)
   
   # add arrows
-  p <- p + geom_edge_link(aes(start_cap=label_rect(node1.text0),
-                              end_cap=label_rect(node2.text0)),
-                          arrow=arrow.type)
+  p <- p + ggraph::geom_edge_link(aes(start_cap=ggraph::label_rect(node1.text0),
+                                  end_cap=ggraph::label_rect(node2.text0)),
+                                  arrow=arrow.type)
   
   # add p-values
   if (pvalue) {
     p <- p + geom_label(aes(x=(xend+x)/2, 
-                            y=(yend+y)/2 - diff(ylim)*grid::convertY(unit(4,"mm"),"npc",valueOnly=TRUE)*(yend==y), label=pvalue), get_edges(),
-                        label.padding = unit(0.15,"lines"))
+                            y=(yend+y)/2 - diff(ylim)*grid::convertY(unit(4,"mm"),"npc",valueOnly=TRUE)*(yend==y), label=pvalue), 
+                        ggraph::get_edges(),label.padding = unit(0.15,"lines"))
   }
   
   # return graph
