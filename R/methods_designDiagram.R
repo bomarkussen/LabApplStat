@@ -22,6 +22,7 @@
 #' @param pvalue boolean specifying whether p-values should be inserted on the graphs. This is only possible if a response variable was specified. Defaults to \code{TRUE} is \code{circle="MSS"} and \code{FALSE} otherwise.
 #' @param kill formula specifying which cirlces not to plot. Defaults to \code{~1} corresponding to not plotting the intercept term (that otherwise may overweight the remaining terms).
 #' @param ca boolean deciding whether collinearity analysis is visualized. If \code{NULL} then set \code{TRUE} for non-orthogonal designs, and to \code{FALSE} for orthogonal designs. Defaults to \code{NULL}.
+#' @param max.area numeric specifying the used maximal area of circles. If \code{NULL} then \code{max.area} is derived from \code{SS} or \code{MSS} according to value of \code{circle}. Defaults to \code{NULL}.
 #' @param relative positive numeric, which specifies needed relative increase for an area to be visualized in the collinearity analysis. Defaults to \code{0.01}.
 #' @param color color of circles when \code{ca=FALSE}. Defaults to \code{"lightgreen"} for Sum-of-Squares and to \code{"lightblue"} for Mean-Sum-of-Squares.
 #' @param circle.scaling numeric specifying size scaling of circles. Defaults to \code{1}, which corresponds to the largest circle having a radius that is half of the shortest distance between two nodes.
@@ -90,7 +91,7 @@ summary.designDiagram <- function(object,...) {
 #' @rdname designDiagram-class
 #' @export
 plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
-                               kill=~1,ca=NULL,relative=0.01,
+                               kill=~1,ca=NULL,max.area=NULL,relative=0.01,
                                color=ifelse(circle=="MSS","lightblue","lightgreen"),
                                circle.scaling=1,
                                arrow.type=arrow(angle=20,length=unit(4,"mm")),
@@ -169,7 +170,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
         mydf <- mydf[is.element(x$terms,myterms),]
         mydf <- mydf[jj,]
         area <- SS[i,jj]
-        mydf$r <- max.r*sqrt(area/max(SS,na.rm=TRUE))
+        mydf$r <- max.r*sqrt(area/ifelse(is.null(max.area),max(SS,na.rm=TRUE),max.area))
         if (i > 1) {
           mydf$variable <- factor(rownames(SS)[i],levels=variables)
         } else {
@@ -189,7 +190,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
         mydf <- mydf[jj,]
         if (nrow(mydf)>0) {
           area <- SS[i,jj]
-          mydf$r <- max.r*sqrt(area/max(SS,na.rm=TRUE))
+          mydf$r <- max.r*sqrt(area/ifelse(is.null(max.area),max(SS,na.rm=TRUE),max.area))
           mydf$variable <- factor(rownames(SS)[i],levels=variables)
           p <- p + ggraph::geom_node_circle(aes(col=variable),data=mydf,lty=2,lwd=1.2)
         }
@@ -201,7 +202,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
       if (circle=="SS") {area <- x$SS[1,myterms]} else {area <- x$MSS[1,myterms]}
       mydf <- g[order(g$name),]
       mydf <- mydf[is.element(x$terms,myterms),]
-      mydf$r <- max.r*sqrt(area/max(area,na.rm=TRUE))
+      mydf$r <- max.r*sqrt(area/ifelse(is.null(max.area),max(area,na.rm=TRUE),max.area))
 
       # add circles
       p <- p + ggraph::geom_node_circle(aes(r=r),data=mydf,col=color,fill=color) +
