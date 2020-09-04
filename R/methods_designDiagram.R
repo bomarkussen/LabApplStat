@@ -166,7 +166,8 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
           jj <- (ii>=i) & ((SS[i,]-SS[1,])/SS[1,] > relative)
         }
         # find radii
-        mydf <- g[order(g$name),]
+        # TO DO: g$name appears to be a character! Is this always true?
+        mydf <- g[order(as.numeric(g$name)),]
         mydf <- mydf[is.element(x$terms,myterms),]
         mydf <- mydf[jj,]
         area <- SS[i,jj]
@@ -185,7 +186,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
         jj <- (i>ii) & ((SS[i,]-SS[cbind(ii,1:length(ii))])/SS[cbind(ii,1:length(ii))] > relative)
         jj <- jj & (!is.na(jj))
         # find radii
-        mydf <- g[order(g$name),]
+        mydf <- g[order(as.numeric(g$name)),]
         mydf <- mydf[is.element(x$terms,myterms),]
         mydf <- mydf[jj,]
         if (nrow(mydf)>0) {
@@ -200,7 +201,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
     } else {
       # without collinearity analysis
       if (circle=="SS") {area <- x$SS[1,myterms]} else {area <- x$MSS[1,myterms]}
-      mydf <- g[order(g$name),]
+      mydf <- g[order(as.numeric(g$name)),]
       mydf <- mydf[is.element(x$terms,myterms),]
       mydf$r <- max.r*sqrt(area/ifelse(is.null(max.area),max(area,na.rm=TRUE),max.area))
 
