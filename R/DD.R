@@ -103,8 +103,12 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
     # make design matrix
     A <- model.matrix(as.formula(paste0("~0+",tmp)),data=data)
     # centralize numerical variables?
-    if (center & (tmp!="1") & (is.null(attr(A,"contrasts")))) {
-      A <- apply(A,2,function(y){y-mean(y,na.rm=TRUE)})
+    if (center & (tmp!="1")) {
+      # is there any variable, which is not a factor?
+      if (length(setdiff(names(get_all_vars(as.formula(paste0("~0+",tmp)),data=data)),
+                         names(attr(A,"contrasts"))))>0) {
+        A <- apply(A,2,function(y){y-mean(y,na.rm=TRUE)})
+      }
     }
     # remove non-needed attributed
     attr(A,"assign") <- NULL
@@ -271,6 +275,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   # Reorder variables
   myterms   <- myterms[myorder]
   Nparm     <- Nparm[myorder]
+  mydf      <- mydf[myorder]
   relations <- relations[myorder,myorder]
   mydesigns <- mydesigns[myorder]
   
