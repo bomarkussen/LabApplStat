@@ -116,7 +116,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
     # remove zero columns
     A <- A[,!apply(A,2,function(x){all(x==0)}),drop=FALSE]
     # reduce to full rank (relative to eps) basis
-    tmp <- svd(A)
+    tmp <- svd(A,nv=0)
     mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
     # extract number of parameters
     Nparm[i] <- ncol(mydesigns[[i]])
@@ -185,7 +185,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
       NullSpace <- tmp$u[,tmp$d>eps,drop=FALSE]
       # Look for minimum among the existing terms
       for (k in setdiff((1:M),c(i,j))) {
-        if ((NullDim==Nparm[k]) && (NullDim==sum(svd(cbind(NullSpace,mydesigns[[k]]))$d>eps))) {
+        if ((NullDim==Nparm[k]) && (NullDim==sum(svd(cbind(NullSpace,mydesigns[[k]]),nu=0,nv=0)$d>eps))) {
           relations[i,j] <- relations[j,i] <- myterms[k]
           break
         }
@@ -234,20 +234,6 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   mydf <- unlist(lapply(mydesigns,function(x){dim(x)[2]}))
   
   
-  # -------------------------------------------------------
-  # Investigate orthogonality by computing inner products
-  # -------------------------------------------------------
-
-  # Compute inner products
-  inner <- matrix(NA,M,M)
-  for (i in 1:M) for (j in 1:M) {
-    inner[i,j] <- round(sum(c(t(mydesigns[[i]])%*%mydesigns[[j]])^2),floor(-log10(eps)))
-  }
-  
-  # Issue warning for non-orthogonal designs
-  if (any(inner[upper.tri(inner)]!=0)) warning("Design is non-orthogonal: Sum-of-Squares and p-values may depend on order of terms.")
-  
-  
   # ----------------------------------------------------
   # Find sequential ordering of the terms
   # Uses and modifies the variables: 
@@ -280,6 +266,37 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   mydesigns <- mydesigns[myorder]
   
 
+  # -------------------------------------------------------
+  # Investigate orthogonality by computing inner products
+  # of basis after removal of lower order terms
+  # -------------------------------------------------------
+  
+  # Initialize and find basis
+  mybasis <- vector("list",M)
+
+  # Initialize basis for lower order variables
+  B <- matrix(0,N,0)
+  
+  # Loop through all variables
+  for (i in 1:M) {
+    # find orthogonal basis
+    A <- mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]]
+    tmp <- svd(A,nv=0)
+    mybasis[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
+    # update basis of lower order variables
+    B <- cbind(B,mybasis[[i]])
+  }
+  
+  # Compute inner products
+  inner <- matrix(NA,M,M)
+  for (i in 1:M) for (j in 1:M) {
+    inner[i,j] <- round(sum(c(t(mybasis[[i]])%*%mybasis[[j]])^2),floor(-log10(eps)))
+  }
+  
+  # Issue warning for non-orthogonal designs
+  if (any(inner[upper.tri(inner)]!=0)) warning("Design is non-orthogonal: Sum-of-Squares and p-values may depend on order of terms.")
+
+  
   # -----------------------------------
   # Extend with the identity variable
   # -----------------------------------
