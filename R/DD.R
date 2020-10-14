@@ -116,8 +116,10 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
     # remove zero columns
     A <- A[,!apply(A,2,function(x){all(x==0)}),drop=FALSE]
     # reduce to full rank (relative to eps) basis
-    tmp <- svd(A,nv=0)
-    mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
+    if (ncol(A)>0) {
+      tmp <- svd(A,nv=0)
+      mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
+    } else {mydesigns[[i]] <- matrix(0,N,0)}
     # extract number of parameters
     Nparm[i] <- ncol(mydesigns[[i]])
   }
@@ -220,7 +222,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   # Remove nested designs from the designs
   if (M>0) for (i in M:1) {
     tmp <- is.element(relations[i,],c(">","->"))
-    if (any(tmp)) {
+    if (any(tmp) & (ncol(mydesigns[[i]])>0)) {
       B <- NULL
       for (j in which(tmp)) B <- cbind(B,mydesigns[[j]])
       tmp <- svd(B,nv=0)
@@ -280,11 +282,13 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   # Loop through all variables
   for (i in 1:M) {
     # find orthogonal basis
-    A <- mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]]
-    tmp <- svd(A,nv=0)
-    mybasis[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
-    # update basis of lower order variables
-    B <- cbind(B,mybasis[[i]])
+    if (ncol(mydesigns[[i]])>0) {
+      A <- mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]]
+      tmp <- svd(A,nv=0)
+      mybasis[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
+      # update basis of lower order variables
+      B <- cbind(B,mybasis[[i]])
+    } else {mybasis[[i]] <- matrix(0,N,0)}
   }
   
   # Compute inner products
@@ -370,8 +374,10 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
           tmp <- svd(do.call("cbind",mydesigns[k]),nv=0)
           B <- tmp$u[,tmp$d>eps,drop=FALSE]
           A <- mydesigns[[j]]-B%*%t(B)%*%mydesigns[[j]]
-          tmp <- svd(A,nv=0)
-          A <- tmp$u[,tmp$d>eps,drop=FALSE]
+          if (ncol(A)>0) {
+            tmp <- svd(A,nv=0)
+            A <- tmp$u[,tmp$d>eps,drop=FALSE]
+          } else {A <- matrix(0,N,0)}
         }
         # compute sum-of-squares
         SS[i,j] <- sum(c(y%*%A)^2)
