@@ -44,10 +44,10 @@ emmeans_ED <- function(object,specs,left,right,tran=NULL,p=0.5,p.name="probabili
   # Find linear transformations
   A <- em0@linfct
   B <- em1@linfct - em0@linfct
-  # Find indices of estimable LD's
+  # Find indices of estimable ED's
   nbasis0 <- em0@nbasis; if (all(is.na(nbasis0))) nbasis0 <- rep(0,length(em0@bhat)) 
   nbasis1 <- em1@nbasis; if (all(is.na(nbasis1))) nbasis1 <- rep(0,length(em1@bhat)) 
-  ii <- apply(cbind(em0@linfct %*% nbasis0,em1@linfct %*% nbasis1),1,function(x) {all(x==0)})
+  ii <- apply(cbind(em0@linfct %*% round(nbasis0,10),em1@linfct %*% round(nbasis1,10)),1,function(x) {all(x==0)})
   # Find estimates
   hat.theta <- em0@bhat
   jj    <- !is.na(hat.theta)
