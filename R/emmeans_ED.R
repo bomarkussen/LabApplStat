@@ -71,7 +71,11 @@ emmeans_ED <- function(object,specs,left,right,tran=NULL,p=0.5,p.name="probabili
   }
   # Make emmGrid object by altering em0
   em <- em0
-  em@model.info <- list(call = match.call(), xlev = xlev)
+  if (is.element("nesting",names(em0@model.info))) {
+    em@model.info <- list(call = match.call(), xlev = xlev, nesting = em0@model.info$nesting)
+  } else {
+    em@model.info <- list(call = match.call(), xlev = xlev)
+  }
   if (length(p)>1) em@roles$predictors <- c(em@roles$predictors,p.name)
   em@grid   <- grid
   em@levels <- xlev
