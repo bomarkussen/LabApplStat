@@ -16,7 +16,7 @@
   circle = "none",
   pvalue = (circle == "MSS"),
   kill = ~1,
-  ca = NULL,
+  ca = FALSE,
   max.area = NULL,
   relative = 0.01,
   color = ifelse(circle == "MSS", "lightblue", "lightgreen"),
@@ -41,7 +41,7 @@
 
 \item{kill}{formula specifying which cirlces not to plot. Defaults to \code{~1} corresponding to not plotting the intercept term (that otherwise may overweight the remaining terms).}
 
-\item{ca}{boolean deciding whether collinearity analysis is visualized. If \code{NULL} then set \code{TRUE} for non-orthogonal designs, and to \code{FALSE} for orthogonal designs. Defaults to \code{NULL}.}
+\item{ca}{boolean deciding whether collinearity analysis is visualized. If \code{NULL} then set \code{TRUE} for non-orthogonal designs, and to \code{FALSE} for orthogonal designs. Defaults to \code{FALSE}.}
 
 \item{max.area}{numeric specifying the used maximal area of circles. If \code{NULL} then \code{max.area} is derived from \code{SS} or \code{MSS} according to value of \code{circle}. Defaults to \code{NULL}.}
 

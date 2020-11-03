@@ -21,7 +21,7 @@
 #' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"III"}=TO BE DESCRIBED. The three latter options are only available if a response variable was specified for the design. Defaults to \code{"none"}.
 #' @param pvalue boolean specifying whether p-values should be inserted on the graphs. This is only possible if a response variable was specified. Defaults to \code{TRUE} is \code{circle="MSS"} and \code{FALSE} otherwise.
 #' @param kill formula specifying which cirlces not to plot. Defaults to \code{~1} corresponding to not plotting the intercept term (that otherwise may overweight the remaining terms).
-#' @param ca boolean deciding whether collinearity analysis is visualized. If \code{NULL} then set \code{TRUE} for non-orthogonal designs, and to \code{FALSE} for orthogonal designs. Defaults to \code{NULL}.
+#' @param ca boolean deciding whether collinearity analysis is visualized. If \code{NULL} then set \code{TRUE} for non-orthogonal designs, and to \code{FALSE} for orthogonal designs. Defaults to \code{FALSE}.
 #' @param max.area numeric specifying the used maximal area of circles. If \code{NULL} then \code{max.area} is derived from \code{SS} or \code{MSS} according to value of \code{circle}. Defaults to \code{NULL}.
 #' @param relative positive numeric, which specifies needed relative increase for an area to be visualized in the collinearity analysis. Defaults to \code{0.01}.
 #' @param color color of circles when \code{ca=FALSE}. Defaults to \code{"lightgreen"} for Sum-of-Squares and to \code{"lightblue"} for Mean-Sum-of-Squares.
@@ -91,7 +91,7 @@ summary.designDiagram <- function(object,...) {
 #' @rdname designDiagram-class
 #' @export
 plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
-                               kill=~1,ca=NULL,max.area=NULL,relative=0.01,
+                               kill=~1,ca=FALSE,max.area=NULL,relative=0.01,
                                color=ifelse(circle=="MSS","lightblue","lightgreen"),
                                circle.scaling=1,
                                arrow.type=arrow(angle=20,length=unit(4,"mm")),
