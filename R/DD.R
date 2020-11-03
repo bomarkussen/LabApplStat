@@ -270,31 +270,32 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
 
   # -------------------------------------------------------
   # Investigate orthogonality by computing inner products
-  # of basis after removal of lower order terms
   # -------------------------------------------------------
-  
-  # Initialize and find basis
-  mybasis <- vector("list",M)
 
-  # Initialize basis for lower order variables
-  B <- matrix(0,N,0)
-  
-  # Loop through all variables
-  for (i in 1:M) {
-    # find orthogonal basis
-    if (ncol(mydesigns[[i]])>0) {
-      A <- mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]]
-      tmp <- svd(A,nv=0)
-      mybasis[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
-      # update basis of lower order variables
-      B <- cbind(B,mybasis[[i]])
-    } else {mybasis[[i]] <- matrix(0,N,0)}
-  }
+  # # of basis after removal of lower order terms
+  # 
+  # # Initialize and find basis
+  # mybasis <- vector("list",M)
+  # 
+  # # Initialize basis for lower order variables
+  # B <- matrix(0,N,0)
+  # 
+  # # Loop through all variables
+  # for (i in 1:M) {
+  #   # find orthogonal basis
+  #   if (ncol(mydesigns[[i]])>0) {
+  #     A <- mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]]
+  #     tmp <- svd(A,nv=0)
+  #     mybasis[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
+  #     # update basis of lower order variables
+  #     B <- cbind(B,mybasis[[i]])
+  #   } else {mybasis[[i]] <- matrix(0,N,0)}
+  # }
   
   # Compute inner products
   inner <- matrix(NA,M,M)
   for (i in 1:M) for (j in 1:M) {
-    inner[i,j] <- round(sum(c(t(mybasis[[i]])%*%mybasis[[j]])^2),floor(-log10(eps)))
+    inner[i,j] <- round(sum(c(t(mydesigns[[i]])%*%mydesigns[[j]])^2),floor(-log10(eps)))
   }
   
   # Issue warning for non-orthogonal designs
@@ -415,9 +416,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
     rownames(pvalue) <- colnames(pvalue) <- myterms
   rownames(SS) <- rownames(MSS) <- c("-",myterms.remove)
   rownames(inner) <- colnames(inner) <- names(mydesigns) <- myterms[-M]
-  res <- list(terms=myterms,random.terms=myterms.random,Nparm=Nparm,df=mydf,
-              SS=SS,MSS=MSS,relations=relations,pvalue=pvalue,
-              inner=inner,response=!is.null(y))
-  class(res) <- "designDiagram"
-  return(res)
+  return(structure(list(terms=myterms,random.terms=myterms.random,Nparm=Nparm,df=mydf,
+                   SS=SS,MSS=MSS,relations=relations,pvalue=pvalue,
+                   inner=inner,response=!is.null(y)),class="designDiagram"))
 }
