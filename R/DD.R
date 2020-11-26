@@ -64,6 +64,17 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   # -------------------------
   # Initialize
   # -------------------------
+
+  # find model frame and number of rows
+  N.all <- nrow(data)
+  if (is.null(random)) {
+    data <- model.frame(fixed,data)
+  } else {
+    data <- model.frame(update(fixed,as.formula(paste(as.character(random),collapse=".+"))),data)
+  }
+  N <- nrow(data)
+  if (N!=N.all) warning(paste("Removed",N.all-N,"rows with missing values in response or explanatory variables"))
+  
   
   # find terms in the design and place square brackets around random terms
   myterms <- attr(terms(fixed,keep.order=TRUE),"term.labels")
@@ -86,12 +97,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   # TO DO: Should we allow for M=0 below? If so, then updates required
   if (M==0) stop("There should be at least one term (including the intercept)")
 
-  # find number of complete observations
-  N <- nrow(model.frame(formula(paste0("~",paste(sub("[","",sub("]","",myterms,fixed=TRUE),fixed=TRUE),collapse="+"))),data))
-
   # extract response variable if it is present
-  # To DO: also take care of missing observations in N and designs
-  #        Presumably this should be done by subsetting data to complete cases
   y <- model.response(model.frame(fixed,data))
   
   # make design matrices for each of the terms
