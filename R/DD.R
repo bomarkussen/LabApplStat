@@ -85,10 +85,12 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
     center <- FALSE
   }
   if (is.null(random)) {myterms.random <- NULL} else {
-    myterms.random <- setdiff(attr(terms(random,keep.order=TRUE),"term.labels"),myterms)
+    # terms in random-option will be treated as random
+    # but these may also be given in fixed-option to specify the order
+    myterms.random <- attr(terms(random,keep.order=TRUE),"term.labels")
     if (length(myterms.random)>0) {
       myterms.random <- paste("[",myterms.random,"]",sep="")
-      myterms <- c(myterms,myterms.random)
+      myterms <- c(myterms,setdiff(myterms.random,myterms))
     }
   }
   M <- length(myterms)
