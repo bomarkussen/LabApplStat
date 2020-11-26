@@ -401,8 +401,8 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
     MSS <- SS/df.tmp
     
     # F-tests only for terms with positive degrees of freedom, which have
-    # only one term nested within them.
-    for (i in which((mydf>0) & apply(relations.ghost,1,function(x){sum(x=="<-")})==1)) {
+    # at least one term nested within them.
+    for (i in which((mydf>0) & apply(relations.ghost,1,function(x){sum(x=="<-")})>0)) {
       # Find candidates for denominator: random effects with positive degrees of freedom, which are "<" or "<-"
       j <- (is.element(myterms,myterms.random) & (mydf>0) & is.element(relations.ghost[i,],c("<","<-")))
       # Remove candidates that are nested within some of the other candidates
@@ -410,10 +410,14 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
       # Make F-test if only one(!) candidate is left
       if (sum(j)==1) {
         j <- which(j)
-        # allocate p-value to an "<-" with df>0
-        k <- which((mydf>0) & (relations[i,]=="<-"))
-        if (length(k)==0) k <- which(relations[i,]=="<-")[1]
-        pvalue[i,k] <- 1-pf(MSS[1,i]/MSS[1,j],mydf[i],mydf[j])
+        # allocate p-value to an "<-" with df>0, and in which j is nested
+        k <- which((mydf>0) & (relations[i,]=="<-") & (is.element(relations[j,],c(">","->","="))))
+        # if not possible, then relax conditions df>0
+        if (length(k)==0) {
+          k <- which((relations[i,]=="<-") & (is.element(relations[j,],c(">","->","="))))
+        }
+        # in rare cases (!?) with more than one k, simply use the first
+        pvalue[i,k[1]] <- 1-pf(MSS[1,i]/MSS[1,j],mydf[i],mydf[j])
       }
     }
   }
