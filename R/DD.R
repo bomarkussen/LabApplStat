@@ -98,7 +98,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   if (M==0) stop("There should be at least one term (including the intercept)")
 
   # extract response variable if it is present
-  y <- model.response(model.frame(fixed,data))
+  y <- model.response(data)
   
   # make design matrices for each of the terms
   mydesigns <- vector("list",M)
