@@ -89,8 +89,10 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
     # but these may also be given in fixed-option to specify the order
     myterms.random <- attr(terms(random,keep.order=TRUE),"term.labels")
     if (length(myterms.random)>0) {
-      myterms.random <- paste("[",myterms.random,"]",sep="")
       myterms <- c(myterms,setdiff(myterms.random,myterms))
+      i <- is.element(myterms,myterms.random)
+      myterms[i] <- paste("[",myterms[i],"]",sep="")
+      myterms.random <- paste("[",myterms.random,"]",sep="")
     }
   }
   M <- length(myterms)
@@ -261,11 +263,14 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
     if (k==1) {
       # Note: which.min() selects the index of the first minimum, which hence 
       #       complies with the initial order as much as possible.
-      i <- which.min(M*apply(relations==">",1,sum)-apply(relations=="<",1,sum))
+#      i <- which.min(M*apply(relations==">",1,sum)-apply(relations=="<",1,sum))
+      i <- which.min(1*apply(relations==">",1,any))
     } else {
-      i <- which.min(M*is.element(1:M,myorder[1:(k-1)])
-                     +M*apply(relations[,-myorder[1:(k-1)],drop=FALSE]==">",1,sum)
-                     -apply(relations[,-myorder[1:(k-1)],drop=FALSE]=="<",1,sum))
+#      i <- which.min(M*is.element(1:M,myorder[1:(k-1)])+
+#                     M*apply(relations[,-myorder[1:(k-1)],drop=FALSE]==">",1,sum)-
+#                     apply(relations[,-myorder[1:(k-1)],drop=FALSE]=="<",1,sum))
+      i <- which.min(2*is.element(1:M,myorder[1:(k-1)])+
+                       apply(relations[,-myorder[1:(k-1)],drop=FALSE]==">",1,any))
     }
     myorder[k] <- i
   }
