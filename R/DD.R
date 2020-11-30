@@ -77,7 +77,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   
   
   # find terms in the design and place square brackets around random terms
-  myterms <- attr(terms(fixed,keep.order=TRUE),"term.labels")
+  myterms <- attr(terms(fixed),"term.labels")
   if (attr(terms(fixed),"intercept")==1) {
     myterms <- c("1",myterms)
   } else {
@@ -87,7 +87,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   if (is.null(random)) {myterms.random <- NULL} else {
     # terms in random-option will be treated as random
     # but these may also be given in fixed-option to specify the order
-    myterms.random <- attr(terms(random,keep.order=TRUE),"term.labels")
+    myterms.random <- attr(terms(random),"term.labels")
     if (length(myterms.random)>0) {
       myterms <- c(myterms,setdiff(myterms.random,myterms))
       i <- is.element(myterms,myterms.random)
@@ -366,7 +366,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
 
   # find terms to be removed in the collinearity analysis
   # NB: placed here to ensure same ordering as in myterms
-  myterms.remove <- setdiff(myterms,attr(terms(keep,keep.order=TRUE),"term.labels"))
+  myterms.remove <- setdiff(myterms,attr(terms(keep),"term.labels"))
   if (attr(terms(keep),"intercept")==1) myterms.remove <- setdiff(myterms.remove,"1")
   myterms.remove <- setdiff(myterms.remove,"[I]")
   
@@ -429,6 +429,17 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
     }
   }
 
+  # make data frame with coordinates of nodes in a Sugiyama layout  
+  from <- 1+(which(relations=="<-")-1)%/%length(myterms)
+  to   <- 1+(which(relations=="<-")-1)%%length(myterms)
+  ii   <- order(from,to,decreasing=TRUE)
+  g <- ggraph::create_layout(
+    data.frame(from=as.character(from[ii]),to=as.character(to[ii])),
+    "sugiyama")
+  coordinates           <- data.frame(x=max(g$y)-g$y,y=g$x)
+  rownames(coordinates) <- myterms[as.numeric(g$name)]
+
+      
   # return result
   names(myterms) <- names(Nparm) <- names(mydf) <- 
     colnames(SS) <- colnames(MSS) <- rownames(relations) <- colnames(relations) <- 
@@ -436,6 +447,8 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
   rownames(SS) <- rownames(MSS) <- c("-",myterms.remove)
   rownames(inner) <- colnames(inner) <- names(mydesigns) <- myterms[-M]
   return(structure(list(terms=myterms,random.terms=myterms.random,Nparm=Nparm,df=mydf,
-                   SS=SS,MSS=MSS,relations=relations,pvalue=pvalue,
-                   inner=inner,response=!is.null(y)),class="designDiagram"))
+                        SS=SS,MSS=MSS,relations=relations,pvalue=pvalue,
+                        inner=inner,response=!is.null(y),
+                        coordinates=coordinates),
+                   class="designDiagram"))
 }

@@ -14,6 +14,7 @@
 #'   \item{\code{pvalue}}{Named matrix with p-values for Type-I F-tests. p-values are stated at the collapsed nesting, but F-test are done against the most coarse nested random effect.}
 #'   \item{\code{inner}}{Named matrix of squared inner products of subspaces with nesting subspaces removed. Rouded at 6'th digits, and used to decide orthogonality of the design.}
 #'   \item{\code{response}}{Logical stating whether a response variable was present.}
+#'   \item{\code{coordinates}}{Data frame with node coordinates of the terms. Initialized in Sugiyama layout.}
 #' }
 #' 
 #' @param x object of class \code{designDiagram}
@@ -104,18 +105,20 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
   # possibly auto-choose ca
   if (is.null(ca)) ca <- any(x$inner[upper.tri(x$inner)]!=0)
   
-  # data frame with edges 
-  g.df <- data.frame(from=as.character(1+(which(x$relations=="<-")-1)%/%length(x$terms)),
-                     to=as.character(1+(which(x$relations=="<-")-1)%%length(x$terms)),
-                     pvalue=paste0("p=",signif(x$pvalue[x$relations=="<-"],digits=3)))
+  # data frame with edges
+  from <- 1+(which(x$relations=="<-")-1)%/%length(x$terms)
+  to   <- 1+(which(x$relations=="<-")-1)%%length(x$terms)
+  ii   <- order(from,to,decreasing=TRUE)
+  g.df <- data.frame(from=as.character(from[ii]),to=as.character(to[ii]),
+                     pvalue=paste0("p=",signif(x$pvalue[x$relations=="<-"][ii],digits=3)))
   g.df$pvalue[g.df$pvalue=="p=NA"] <- NA 
   
-  # Sugiyama layout scaled in box specified by xlim and ylim
-  g <- ggraph::create_layout(g.df,"sugiyama")
-  if (horizontal) {
-    tmp <- g$x
-    g$x <- -g$y
-    g$y <- tmp
+  # Layout scaled in box specified by xlim and ylim
+  g <- ggraph::create_layout(g.df,x$coordinates)
+  if (!horizontal) {
+    tmp <- g$y
+    g$y <- max(g$x)-g$x
+    g$x <- tmp
   }
   if (max(g$x)>min(g$x)) {
     g$x <- xlim[1] + (xlim[2]-xlim[1])*(g$x-min(g$x))/(max(g$x)-min(g$x))
