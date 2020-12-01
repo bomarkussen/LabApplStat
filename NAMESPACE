@@ -3,6 +3,7 @@
 S3method(plot,designDiagram)
 S3method(print,designDiagram)
 S3method(summary,designDiagram)
+S3method(update,designDiagram)
 export(DD)
 export(chisq.test.simulate)
 export(emmeans_ED)

@@ -89,6 +89,21 @@ summary.designDiagram <- function(object,...) {
   print(object$relations)
 }
 
+# Hack: Define generic functions by stealing from stats-package.
+#setGeneric("update",stats::update)
+
+#' @rdname designDiagram-class
+#' @export
+update.designDiagram <- function(object,new=NULL) {
+  # take rownames for object
+  ii <- match(rownames(object$coordinates),
+              rownames(new$coordinates))
+  if (any(is.na(ii))) stop(paste("Terms (",paste0(rownames(object$coordinate)[is.na(ii)],collapse=","),") do not appear in reference object",sep=""))
+  object$coordinates <- new$coordinates[ii,]
+  return(object)
+}
+
+
 #' @rdname designDiagram-class
 #' @export
 plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
