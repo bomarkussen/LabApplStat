@@ -4,12 +4,15 @@
 \alias{designDiagram-class}
 \alias{print.designDiagram}
 \alias{summary.designDiagram}
+\alias{update.designDiagram}
 \alias{plot.designDiagram}
 \title{The \code{designDiagram} class and some basic methods}
 \usage{
 \method{print}{designDiagram}(x, ...)
 
 \method{summary}{designDiagram}(object, ...)
+
+\method{update}{designDiagram}(object, new = NULL)
 
 \method{plot}{designDiagram}(
   x,
