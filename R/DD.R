@@ -235,9 +235,10 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   if (M>0) for (i in M:1) {
     tmp <- is.element(relations[i,],c(">","->"))
     if (any(tmp) & (ncol(mydesigns[[i]])>0)) {
-      B <- NULL
-      for (j in which(tmp)) B <- cbind(B,mydesigns[[j]])
-      tmp <- svd(B,nv=0)
+      #B <- NULL
+      #for (j in which(tmp)) B <- cbind(B,mydesigns[[j]])
+      #tmp <- svd(B,nv=0)
+      tmp <- svd(do.call("cbind",mydesigns[which(tmp)]),nv=0)
       B <- tmp$u[,tmp$d>eps,drop=FALSE]
       tmp <- svd(mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]],nv=0)
       mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
@@ -245,7 +246,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   }
   
   # Compute degrees of freedom
-  mydf <- unlist(lapply(mydesigns,function(x){dim(x)[2]}))
+  mydf <- unlist(lapply(mydesigns,ncol))
   
   
   # ----------------------------------------------------
@@ -326,7 +327,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   myterms.random <- c(myterms.random,"[I]")
   myterms   <- c(myterms,"[I]")
   Nparm     <- c(Nparm,N)
-  mydf      <- c(mydf,Nparm[M+1]-sum(mydf))
+  mydf      <- c(mydf,Nparm[M+1]-sum(svd(do.call("cbind",mydesigns),nu=0,nv=0)$d>eps))
   relations <- cbind(rbind(relations,matrix(">",1,M)),matrix(c(rep("<",M),"="),M+1,1))
   M <- M+1
   
