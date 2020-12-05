@@ -4,7 +4,7 @@
 \alias{DD}
 \title{Design diagram for a linear model}
 \usage{
-DD(fixed, random = NULL, data, keep = ~1, center = TRUE, eps = 1e-12)
+DD(fixed, random = NULL, data, keep = ~1, center = FALSE, eps = 1e-12)
 }
 \arguments{
 \item{fixed}{formula with fixed effects. A response may the specified, but this optional.}
@@ -15,7 +15,7 @@ DD(fixed, random = NULL, data, keep = ~1, center = TRUE, eps = 1e-12)
 
 \item{keep}{formula with effects that will not be removed in the collinarity analysis. Defaults to \code{~1} meaning that the intercept will be kept if it is present.}
 
-\item{center}{boolean deciding whether to centralize numerical predictors when an intercept is present. Defaults to \code{TRUE}.}
+\item{center}{boolean deciding whether to centralize numerical predictors when an intercept is present. Defaults to \code{FALSE}.}
 
 \item{eps}{threshold for deeming singular values to be "zero". Defaults to 1e-12.}
 }

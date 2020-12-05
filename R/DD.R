@@ -9,7 +9,7 @@
 #' @param random formula with random effects. Defaults to \code{NULL} meaning that there are no other random effects than the residual, which is added to all designs.
 #' @param data data frame with the explanatory variables and the response (if specified).
 #' @param keep formula with effects that will not be removed in the collinarity analysis. Defaults to \code{~1} meaning that the intercept will be kept if it is present.
-#' @param center boolean deciding whether to centralize numerical predictors when an intercept is present. Defaults to \code{TRUE}.
+#' @param center boolean deciding whether to centralize numerical predictors when an intercept is present. Defaults to \code{FALSE}.
 #' @param eps threshold for deeming singular values to be "zero". Defaults to 1e-12.
 #' 
 #' @return An object of class \code{\link{designDiagram-class}}
@@ -54,7 +54,7 @@
 #' }
 #' 
 #' @export
-DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
+DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   # sanity check
   if (class(fixed)!="formula") stop("fixed-argument must be a formula")
   if ((!is.null(random)) && (class(random)!="formula")) stop("random-argument must be a formula")
@@ -114,13 +114,13 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=TRUE,eps=1e-12) {
     A <- model.matrix(as.formula(paste0("~0+",tmp)),data=data)
     # centralize numerical variables?
     if (center & (tmp!="1")) {
-#      # is there any variable, which is not a factor?
-#      if (length(setdiff(names(get_all_vars(as.formula(paste0("~0+",tmp)),data=data)),
-#                         names(attr(A,"contrasts"))))>0) {
-#        A <- apply(A,2,function(y){y-mean(y,na.rm=TRUE)})
-#      }
-      # are all variables not factors? Then remove intercept
-      if (is.null(attr(A,"contrasts"))) A <- apply(A,2,function(y){y-mean(y,na.rm=TRUE)})
+      # Is there any variable, which is not a factor? Then remove intercept.
+      if (length(setdiff(names(get_all_vars(as.formula(paste0("~0+",tmp)),data=data)),
+                         names(attr(A,"contrasts"))))>0) {
+        A <- A - mean(c(A),na.rm=TRUE)
+      }
+#      # are all variables not factors? Then remove intercept
+#      if (is.null(attr(A,"contrasts"))) A <- A - mean(c(A),na.rm=TRUE)
     }
     # remove non-needed attributed
     attr(A,"assign") <- NULL
