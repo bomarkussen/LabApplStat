@@ -104,8 +104,11 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   # extract response variable if it is present
   y <- model.response(data)
   
-  # make design matrices for each of the terms
+  # for each of the terms make 
+  #   1) orthonormal design matrices
+  #   2) projection matrices for original parameters. TO DO: This is a new attempt in order to quantify balancedness
   mydesigns <- vector("list",M)
+  myprojections <- vector("list",M)
   Nparm <- rep(0,M)
   for (i in 1:M) {
     # removed square brackets if present
@@ -128,10 +131,15 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
     # remove zero columns
     A <- A[,!apply(A,2,function(x){all(x==0)}),drop=FALSE]
     # reduce to full rank (relative to eps) basis
-    if (ncol(A)>0) {
-      tmp <- svd(A,nv=0)
+    if (ncol(A)>0) tmp <- svd(A) # svd(A,nv=0)
+    if ((ncol(A)>0) && (sum(tmp$d>eps)>0)) {
       mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
-    } else {mydesigns[[i]] <- matrix(0,N,0)}
+      myprojections[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]%*%diag(1/tmp$d[tmp$d>eps],nrow=sum(tmp$d>eps))%*%
+        t(tmp$v[,tmp$d>eps,drop=FALSE])
+    } else {
+      mydesigns[[i]] <- matrix(0,N,0)
+      myprojections[[i]] <- matrix(0,N,0)
+    }
     # extract number of parameters
     Nparm[i] <- ncol(mydesigns[[i]])
   }
@@ -146,6 +154,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   #   2) remove duplicate variables
   #   3) extend with missing minima
   #   Uses and modifies the variables: M, myterms, mydesigns, Nparm, relations
+  #                   TO DO: now also: myprojections
   # --------------------------------------------------------------------------
   
   while (any(is.na(relations))) {
@@ -183,6 +192,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
           M <- M-1
           myterms <- myterms[-k]
           mydesigns <- mydesigns[-k]
+          myprojections <- myprojections[-k]
           Nparm <- Nparm[-k]
           relations <- relations[-k,-k,drop=FALSE]            
         }
@@ -219,6 +229,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
         myterms   <- c(myterms,tmp)
         Nparm     <- c(Nparm,NullDim)
         mydesigns <- c(mydesigns,list(NullSpace))
+        myprojections <- c(projections,list(NullSpace))    # TO DO: is this correct?
         relations[i,j] <- relations[j,i] <- myterms[M]
         relations <- cbind(rbind(relations,rep(NA,M-1)),rep(NA,M))
         relations[M,M] <- "="
@@ -232,16 +243,24 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   # -------------------------------------------------------
   
   # Remove nested designs from the designs
-  if (M>0) for (i in M:1) {
+  # TO DO: we have also added computation of non-zero informations
+  myinformations <- vector("list",M)
+  if (M>0) for (i in M:1) if (ncol(mydesigns[[i]])>0) {
     tmp <- is.element(relations[i,],c(">","->"))
-    if (any(tmp) & (ncol(mydesigns[[i]])>0)) {
-      #B <- NULL
-      #for (j in which(tmp)) B <- cbind(B,mydesigns[[j]])
-      #tmp <- svd(B,nv=0)
+    if (any(tmp)) {
+      # find preceeding subspace
       tmp <- svd(do.call("cbind",mydesigns[which(tmp)]),nv=0)
       B <- tmp$u[,tmp$d>eps,drop=FALSE]
-      tmp <- svd(mydesigns[[i]]-B%*%t(B)%*%mydesigns[[i]],nv=0)
+      # update orthonormal designs
+      tmp <- svd(mydesigns[[i]]-B%*%(t(B)%*%mydesigns[[i]]),nv=0)
       mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
+      # compute non-zero informations
+      tmp <- svd(myprojections[[i]]-B%*%(t(B)%*%myprojections[[i]]),nu=0,nv=0)
+      myinformations[[i]] <- round((1/tmp$d[tmp$d>eps])^2,floor(-log10(eps)))
+    } else {
+      # compute non-zero informations
+      tmp <- svd(myprojections[[i]],nu=0,nv=0)
+      myinformations[[i]] <- round((1/tmp$d[tmp$d>eps])^2,floor(-log10(eps)))
     }
   }
   
@@ -277,12 +296,12 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   }
 
   # Reorder variables
-  myterms   <- myterms[myorder]
-  Nparm     <- Nparm[myorder]
-  mydf      <- mydf[myorder]
-  relations <- relations[myorder,myorder]
-  mydesigns <- mydesigns[myorder]
-  
+  myterms        <- myterms[myorder]
+  Nparm          <- Nparm[myorder]
+  mydf           <- mydf[myorder]
+  relations      <- relations[myorder,myorder]
+  mydesigns      <- mydesigns[myorder]
+  myinformations <- myinformations[myorder]
 
   # -------------------------------------------------------
   # Investigate orthogonality by computing inner products
@@ -332,7 +351,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   M <- M+1
   
   # Make ghost relations, where terms with df=0 are removed.
-  # This is used to find testable hypothesis, i.e. collapses that dont remove non-trivial minima
+  # This is used to find testable hypothesis, i.e. collapses that don't remove non-trivial minima
   relations.ghost <- relations
   relations.ghost[mydf==0,] <- "df=0"
   relations.ghost[,mydf==0] <- "df=0"
@@ -379,6 +398,8 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   df.tmp <- matrix(NA,ii,M)
   
   if (!is.null(y)) {
+    # TO DO: Does mydesigns already contain the orthogonal designs? If so, then some of the following code is redundant
+  
     # find orthogonal basis
     if (M>1) for (i in 1:ii) {
       for (j in setdiff(1:(M-1),match(myterms.remove[0:(i-1)],myterms))) {
@@ -446,10 +467,11 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
     colnames(SS) <- colnames(MSS) <- rownames(relations) <- colnames(relations) <- 
     rownames(pvalue) <- colnames(pvalue) <- myterms
   rownames(SS) <- rownames(MSS) <- c("-",myterms.remove)
-  rownames(inner) <- colnames(inner) <- names(mydesigns) <- myterms[-M]
+  rownames(inner) <- colnames(inner) <- names(mydesigns) <- names(myinformations) <- myterms[-M]
   return(structure(list(terms=myterms,random.terms=myterms.random,Nparm=Nparm,df=mydf,
                         SS=SS,MSS=MSS,relations=relations,pvalue=pvalue,
                         inner=inner,response=!is.null(y),
+                        informations=myinformations,
                         coordinates=coordinates),
                    class="designDiagram"))
 }

@@ -13,7 +13,7 @@ DD(fixed, random = NULL, data, keep = ~1, center = FALSE, eps = 1e-12)
 
 \item{data}{data frame with the explanatory variables and the response (if specified).}
 
-\item{keep}{formula with effects that will not be removed in the collinarity analysis. Defaults to \code{~1} meaning that the intercept will be kept if it is present.}
+\item{keep}{formula which effects that will not be removed in the collinarity analysis. Defaults to \code{~1} meaning that the intercept will be kept if it is present.}
 
 \item{center}{boolean deciding whether to centralize numerical predictors when an intercept is present. Defaults to \code{FALSE}.}
 

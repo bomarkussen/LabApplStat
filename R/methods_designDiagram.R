@@ -12,25 +12,26 @@
 #'   \item{\code{MSS}}{Named matrix with Mean-Sum-of-Squares if a response variable was specified.}
 #'   \item{\code{relations}}{Named matrix with relations between variables with the following interpretation: "0"=linear indepent, "<"=row term is a subspace of column, "<-"=row term is a subspace of column term and no other terms are inbetween, ">" and "->" the similar interpretatioin between columns and rows, name=name of minimum between row and column term.}
 #'   \item{\code{pvalue}}{Named matrix with p-values for Type-I F-tests. p-values are stated at the collapsed nesting, but F-test are done against the most coarse nested random effect.}
-#'   \item{\code{inner}}{Named matrix of squared inner products of subspaces with nesting subspaces removed. Rouded at 6'th digits, and used to decide orthogonality of the design.}
+#'   \item{\code{inner}}{Named matrix of squared inner products of subspaces with nesting subspaces removed. Rounded at order of \code{eps} in the call to \code{link{DD}}. Used to decide orthogonality of the design.}
 #'   \item{\code{response}}{Logical stating whether a response variable was present.}
+#'   \item{\code{informations}}{Named list of eigenvalues for the Fisher informations in the sequential decomposition. Rounded at order of \code{eps}.}
 #'   \item{\code{coordinates}}{Data frame with node coordinates of the terms. Initialized in Sugiyama layout.}
 #' }
 #' 
 #' @param x object of class \code{designDiagram}
 #' @param object object of class \code{designDiagram}
-#' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"III"}=TO BE DESCRIBED. The three latter options are only available if a response variable was specified for the design. Defaults to \code{"none"}.
+#' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"I"}=a circle with area proportional to average information and color coding via spread of the information. The options \code{SS} and \code{MSS} are only available if a response variable was specified for the design. Defaults to \code{"I"}.
 #' @param pvalue boolean specifying whether p-values should be inserted on the graphs. This is only possible if a response variable was specified. Defaults to \code{TRUE} is \code{circle="MSS"} and \code{FALSE} otherwise.
 #' @param kill formula specifying which cirlces not to plot. Defaults to \code{~1} corresponding to not plotting the intercept term (that otherwise may overweight the remaining terms).
 #' @param ca boolean deciding whether collinearity analysis is visualized. If \code{NULL} then set \code{TRUE} for non-orthogonal designs, and to \code{FALSE} for orthogonal designs. Defaults to \code{FALSE}.
-#' @param max.area numeric specifying the used maximal area of circles. If \code{NULL} then \code{max.area} is derived from \code{SS} or \code{MSS} according to value of \code{circle}. Defaults to \code{NULL}.
+#' @param max.area numeric specifying the used maximal area of circles. If \code{NULL} then \code{max.area} is derived from \code{SS}, \code{MSS} or \code{I} according to value of \code{circle}. Defaults to \code{NULL}.
 #' @param relative positive numeric, which specifies needed relative increase for an area to be visualized in the collinearity analysis. Defaults to \code{0.01}.
 #' @param color color of circles when \code{ca=FALSE}. Defaults to \code{"lightgreen"} for Sum-of-Squares and to \code{"lightblue"} for Mean-Sum-of-Squares.
 #' @param circle.scaling numeric specifying size scaling of circles. Defaults to \code{1}, which corresponds to the largest circle having a radius that is half of the shortest distance between two nodes.
 #' @param arrow.type specifying arrow heads via \code{\link[grid]{arrow}}. Defaults to \code{arrow(angle=20,length=unit(4,"mm"))}.
 #' @param xlim x-range of diagram plot. Defaults to \code{c(0,1)}.
 #' @param ylim y-range of diagram plot. Defaults to \code{c(0,1)}.
-#' @param horizontal boolen specifying if the design diagram should be drawn horizontally or vertically. Defauls to \code{TRUE}.
+#' @param horizontal boolean specifying if the design diagram should be drawn horizontally or vertically. Defaults to \code{TRUE}.
 #' @param ... not used.
 #' 
 #' @seealso \code{\link{DD}}
@@ -106,7 +107,7 @@ update.designDiagram <- function(object,new=NULL) {
 
 #' @rdname designDiagram-class
 #' @export
-plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
+plot.designDiagram <- function(x,circle="I",pvalue=(circle=="MSS"),
                                kill=~1,ca=FALSE,max.area=NULL,relative=0.01,
                                color=ifelse(circle=="MSS","lightblue","lightgreen"),
                                circle.scaling=1,
@@ -158,11 +159,15 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
                         y=y+0.5*diff(ylim)*grid::convertY(unit(attr(ggraph::label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE)))
   
   # Radii of circles
-  if (is.element(circle,c("SS","MSS"))) {
+  if (is.element(circle,c("SS","MSS","I"))) {
+    # switch off collinearity analysis when information is visualized
+    if (circle=="I") ca <- FALSE
+    
     # terms that will have circles
     myterms <- setdiff(x$terms,attr(terms(kill,keep.order=TRUE),"term.labels"))
     if (attr(terms(kill),"intercept")==1) myterms <- setdiff(myterms,"1")
-
+    if (circle=="I") myterms <- setdiff(myterms,"[I]")
+    
     # choose maximal radius
     max.r <- circle.scaling*0.5*sqrt(outer(g$x,g$x,"-")^2 + outer(g$y,g$y,"-")^2)
     max.r <- min(max.r[upper.tri(max.r)])
@@ -218,14 +223,26 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
       p <- p + coord_fixed()
     } else {
       # without collinearity analysis
-      if (circle=="SS") {area <- x$SS[1,myterms]} else {area <- x$MSS[1,myterms]}
+      if (circle=="SS")  area <- x$SS[1,myterms]
+      if (circle=="MSS") area <- x$MSS[1,myterms]
+      if (circle=="I")   area <- unlist(lapply(x$informations[myterms],function(z){mean(z)}))
+      
       mydf <- g[order(as.numeric(g$name)),]
       mydf <- mydf[is.element(x$terms,myterms),]
       mydf$r <- max.r*sqrt(area/ifelse(is.null(max.area),max(area,na.rm=TRUE),max.area))
 
       # add circles
-      p <- p + ggraph::geom_node_circle(aes(r=r),data=mydf,col=color,fill=color) +
-        coord_fixed()
+      if (circle=="I") {
+        mydf$information_spread <- unlist(lapply(x$informations[myterms],function(z){sqrt(mean((z-mean(z))^2))}))
+        tmp <- max(mydf$information_spread); tmp <- tmp+(tmp==0)
+        p <- p + ggraph::geom_node_circle(aes(r=r,color=information_spread,fill=information_spread),data=mydf) +
+          coord_fixed() + 
+          scale_color_gradient(low="skyblue",high="orange",limits=c(0,tmp)) + 
+          scale_fill_gradient(low="skyblue",high="orange",limits=c(0,tmp))
+      } else {
+        p <- p + ggraph::geom_node_circle(aes(r=r),data=mydf,col=color,fill=color) +
+          coord_fixed()
+      }
     }
   }
 
