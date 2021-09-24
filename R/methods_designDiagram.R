@@ -20,19 +20,21 @@
 #' 
 #' @param x object of class \code{designDiagram}
 #' @param object object of class \code{designDiagram}
-#' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"I"}=a circle with area proportional to average information and color coding via spread of the information. The options \code{SS} and \code{MSS} are only available if a response variable was specified for the design. Defaults to \code{"I"}.
+#' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"I"}=a circle with area proportional to average information and color coding via spread of the information. The options \code{SS} and \code{MSS} are only available if a response variable was specified for the design. Defaults to \code{"none"}.
 #' @param pvalue boolean specifying whether p-values should be inserted on the graphs. This is only possible if a response variable was specified. Defaults to \code{TRUE} is \code{circle="MSS"} and \code{FALSE} otherwise.
 #' @param kill formula specifying which cirlces not to plot. Defaults to \code{~1} corresponding to not plotting the intercept term (that otherwise may overweight the remaining terms).
 #' @param ca boolean deciding whether collinearity analysis is visualized. If \code{NULL} then set \code{TRUE} for non-orthogonal designs, and to \code{FALSE} for orthogonal designs. Defaults to \code{FALSE}.
 #' @param max.area numeric specifying the used maximal area of circles. If \code{NULL} then \code{max.area} is derived from \code{SS}, \code{MSS} or \code{I} according to value of \code{circle}. Defaults to \code{NULL}.
 #' @param relative positive numeric, which specifies needed relative increase for an area to be visualized in the collinearity analysis. Defaults to \code{0.01}.
-#' @param color color of circles when \code{ca=FALSE}. Defaults to \code{"lightgreen"} for Sum-of-Squares and to \code{"lightblue"} for Mean-Sum-of-Squares.
+#' @param color color of circles when \code{ca=FALSE}. Defaults to \code{NULL} corresponding to preassigned choice of colors (see details below).
 #' @param circle.scaling numeric specifying size scaling of circles. Defaults to \code{1}, which corresponds to the largest circle having a radius that is half of the shortest distance between two nodes.
 #' @param arrow.type specifying arrow heads via \code{\link[grid]{arrow}}. Defaults to \code{arrow(angle=20,length=unit(4,"mm"))}.
 #' @param xlim x-range of diagram plot. Defaults to \code{c(0,1)}.
 #' @param ylim y-range of diagram plot. Defaults to \code{c(0,1)}.
 #' @param horizontal boolean specifying if the design diagram should be drawn horizontally or vertically. Defaults to \code{TRUE}.
 #' @param ... not used.
+#' 
+#' @details If \code{color=NULL} and \code{ca=FALSE}, then the defaults colors are \code{"lightgreen"} for Sum-of-Squares, \code{"lightblue"} for Mean-Sum-of-Squares, and a gradient from \code{"limegreen"} to \code{"orange"} for information spread. To specify a different gradient in case of the information spread, then give a vector of two colors.
 #' 
 #' @seealso \code{\link{DD}}
 #' 
@@ -107,10 +109,9 @@ update.designDiagram <- function(object,new=NULL) {
 
 #' @rdname designDiagram-class
 #' @export
-plot.designDiagram <- function(x,circle="I",pvalue=(circle=="MSS"),
+plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
                                kill=~1,ca=FALSE,max.area=NULL,relative=0.01,
-                               color=ifelse(circle=="MSS","lightblue","lightgreen"),
-                               circle.scaling=1,
+                               color=NULL,circle.scaling=1,
                                arrow.type=arrow(angle=20,length=unit(4,"mm")),
                                xlim=c(0,1),ylim=c(0,1),
                                horizontal=TRUE,
@@ -163,6 +164,12 @@ plot.designDiagram <- function(x,circle="I",pvalue=(circle=="MSS"),
     # switch off collinearity analysis when information is visualized
     if (circle=="I") ca <- FALSE
     
+    # use default colors?
+    if (is.null(color)) color <- switch(circle,
+                                        MSS="lightblue",
+                                        SS="lightgreen",
+                                        c("limegreen","orange"))
+
     # terms that will have circles
     myterms <- setdiff(x$terms,attr(terms(kill,keep.order=TRUE),"term.labels"))
     if (attr(terms(kill),"intercept")==1) myterms <- setdiff(myterms,"1")
@@ -223,9 +230,11 @@ plot.designDiagram <- function(x,circle="I",pvalue=(circle=="MSS"),
       p <- p + coord_fixed()
     } else {
       # without collinearity analysis
-      if (circle=="SS")  area <- x$SS[1,myterms]
-      if (circle=="MSS") area <- x$MSS[1,myterms]
-      if (circle=="I")   area <- unlist(lapply(x$informations[myterms],function(z){mean(z)}))
+      area <- switch(circle,
+                     SS={x$SS[1,myterms]},
+                     MSS={x$MSS[1,myterms]},
+                     I={unlist(lapply(x$informations[myterms],mean))})
+      area <- ifelse(is.nan(area),0,area)
       
       mydf <- g[order(as.numeric(g$name)),]
       mydf <- mydf[is.element(x$terms,myterms),]
@@ -233,12 +242,16 @@ plot.designDiagram <- function(x,circle="I",pvalue=(circle=="MSS"),
 
       # add circles
       if (circle=="I") {
-        mydf$information_spread <- unlist(lapply(x$informations[myterms],function(z){sqrt(mean((z-mean(z))^2))}))
-        tmp <- max(mydf$information_spread); tmp <- tmp+(tmp==0)
+        # compute information spread
+        tmp <- unlist(lapply(x$informations[myterms],function(z){sqrt(mean((z-mean(z))^2))}))
+        mydf$information_spread <- ifelse(is.nan(tmp),0,tmp)
+        # if completely balanced information, then only use 1 color
+        if (max(mydf$information_spread)==0) color <- rep(color[1],2)
+        # add circles
         p <- p + ggraph::geom_node_circle(aes(r=r,color=information_spread,fill=information_spread),data=mydf) +
           coord_fixed() + 
-          scale_color_gradient(low="skyblue",high="orange",limits=c(0,tmp)) + 
-          scale_fill_gradient(low="skyblue",high="orange",limits=c(0,tmp))
+          scale_color_gradient(low=color[1],high=color[2],limits=c(0,NA)) + 
+          scale_fill_gradient(low=color[1],high=color[2],limits=c(0,NA))
       } else {
         p <- p + ggraph::geom_node_circle(aes(r=r),data=mydf,col=color,fill=color) +
           coord_fixed()
