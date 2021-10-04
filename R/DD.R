@@ -134,7 +134,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
     if (ncol(A)>0) tmp <- svd(A) # svd(A,nv=0)
     if ((ncol(A)>0) && (sum(tmp$d>eps)>0)) {
       mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
-      myprojections[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]%*%diag(1/tmp$d[tmp$d>eps],nrow=sum(tmp$d>eps))%*%
+      myprojections[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]%*%diag(tmp$d[tmp$d>eps],nrow=sum(tmp$d>eps))%*%
         t(tmp$v[,tmp$d>eps,drop=FALSE])
     } else {
       mydesigns[[i]] <- matrix(0,N,0)
@@ -243,8 +243,6 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   # -------------------------------------------------------
   
   # Remove nested designs from the designs
-  # TO DO: we have also added computation of non-zero informations
-  myinformations <- vector("list",M)
   if (M>0) for (i in M:1) if (ncol(mydesigns[[i]])>0) {
     tmp <- is.element(relations[i,],c(">","->"))
     if (any(tmp)) {
@@ -254,19 +252,14 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
       # update orthonormal designs
       tmp <- svd(mydesigns[[i]]-B%*%(t(B)%*%mydesigns[[i]]),nv=0)
       mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
-      # compute non-zero informations
-      tmp <- svd(myprojections[[i]]-B%*%(t(B)%*%myprojections[[i]]),nu=0,nv=0)
-      myinformations[[i]] <- round((1/tmp$d[tmp$d>eps])^2,floor(-log10(eps)))
-    } else {
-      # compute non-zero informations
-      tmp <- svd(myprojections[[i]],nu=0,nv=0)
-      myinformations[[i]] <- round((1/tmp$d[tmp$d>eps])^2,floor(-log10(eps)))
     }
   }
   
   # Compute degrees of freedom
   mydf <- unlist(lapply(mydesigns,ncol))
   
+  # Compute informations
+  myinformations <- lapply(myprojections,function(x) round(diag(t(x)%*%x),-log10(eps)))
   
   # ----------------------------------------------------
   # Find sequential ordering of the terms
