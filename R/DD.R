@@ -229,7 +229,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
         myterms   <- c(myterms,tmp)
         Nparm     <- c(Nparm,NullDim)
         mydesigns <- c(mydesigns,list(NullSpace))
-        myprojections <- c(projections,list(NullSpace))    # TO DO: is this correct?
+        myprojections <- c(myprojections,list(NullSpace))    # TO DO: is this correct?
         relations[i,j] <- relations[j,i] <- myterms[M]
         relations <- cbind(rbind(relations,rep(NA,M-1)),rep(NA,M))
         relations[M,M] <- "="
