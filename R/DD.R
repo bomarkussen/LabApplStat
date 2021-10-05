@@ -108,7 +108,8 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   #   1) orthonormal design matrices
   #   2) projection matrices for original parameters. TO DO: This is a new attempt in order to quantify balancedness
   mydesigns <- vector("list",M)
-  myprojections <- vector("list",M)
+  myinformations <- vector("list",M)
+  myinformation_pairs <- vector("list",M)
   Nparm <- rep(0,M)
   for (i in 1:M) {
     # removed square brackets if present
@@ -134,11 +135,15 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
     if (ncol(A)>0) tmp <- svd(A) # svd(A,nv=0)
     if ((ncol(A)>0) && (sum(tmp$d>eps)>0)) {
       mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
-      myprojections[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]%*%diag(tmp$d[tmp$d>eps],nrow=sum(tmp$d>eps))%*%
+      varcov <- tmp$v[,tmp$d>eps,drop=FALSE]%*%diag(1/tmp$d[tmp$d>eps]^2,nrow=sum(tmp$d>eps))%*%
         t(tmp$v[,tmp$d>eps,drop=FALSE])
+      d <- sum(tmp$d>eps)
+      myinformations[[i]] <- 1/diag(varcov)
+      myinformation_pairs[[i]] <- round(1/outer(1:d,1:d,function(i,j) varcov[i+d*(i-1)]-varcov[i+d*(j-1)]-varcov[j+d*(i-1)]+varcov[j+d*(j-1)]),-log10(eps))
     } else {
       mydesigns[[i]] <- matrix(0,N,0)
-      myprojections[[i]] <- matrix(0,N,0)
+      myinformations[[i]] <- numeric(0)
+      myinformation_pairs[[i]] <- numeric(0)
     }
     # extract number of parameters
     Nparm[i] <- ncol(mydesigns[[i]])
@@ -154,7 +159,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   #   2) remove duplicate variables
   #   3) extend with missing minima
   #   Uses and modifies the variables: M, myterms, mydesigns, Nparm, relations
-  #                   TO DO: now also: myprojections
+  #                   TO DO: now also: myinformations, myinformation_pairs
   # --------------------------------------------------------------------------
   
   while (any(is.na(relations))) {
@@ -192,7 +197,8 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
           M <- M-1
           myterms <- myterms[-k]
           mydesigns <- mydesigns[-k]
-          myprojections <- myprojections[-k]
+          myinformations <- myinformations[-k]
+          myinformation_pairs <- myinformation_pairs[-k]
           Nparm <- Nparm[-k]
           relations <- relations[-k,-k,drop=FALSE]            
         }
@@ -229,7 +235,9 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
         myterms   <- c(myterms,tmp)
         Nparm     <- c(Nparm,NullDim)
         mydesigns <- c(mydesigns,list(NullSpace))
-        myprojections <- c(myprojections,list(NullSpace))    # TO DO: is this correct?
+        varcov <- solve(t(NullSpace)%*%NullSpace); d <- NullDim
+        myinformations <- c(myinformations,list(1/diag(varcov))) # TO DO: is this correct?
+        myinformation_pairs <- c(myinformation_pairs,list(round(1/outer(1:d,1:d,function(i,j) varcov[i+d*(i-1)]-varcov[i+d*(j-1)]-varcov[j+d*(i-1)]+varcov[j+d*(j-1)]),-log10(eps))))
         relations[i,j] <- relations[j,i] <- myterms[M]
         relations <- cbind(rbind(relations,rep(NA,M-1)),rep(NA,M))
         relations[M,M] <- "="
@@ -257,9 +265,6 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   
   # Compute degrees of freedom
   mydf <- unlist(lapply(mydesigns,ncol))
-  
-  # Compute informations
-  myinformations <- lapply(myprojections,function(x) round(diag(t(x)%*%x),-log10(eps)))
   
   # ----------------------------------------------------
   # Find sequential ordering of the terms
@@ -295,7 +300,8 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   relations      <- relations[myorder,myorder]
   mydesigns      <- mydesigns[myorder]
   myinformations <- myinformations[myorder]
-
+  myinformation_pairs <- myinformation_pairs[myorder]
+  
   # -------------------------------------------------------
   # Investigate orthogonality by computing inner products
   # -------------------------------------------------------
@@ -460,11 +466,12 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
     colnames(SS) <- colnames(MSS) <- rownames(relations) <- colnames(relations) <- 
     rownames(pvalue) <- colnames(pvalue) <- myterms
   rownames(SS) <- rownames(MSS) <- c("-",myterms.remove)
-  rownames(inner) <- colnames(inner) <- names(mydesigns) <- names(myinformations) <- myterms[-M]
+  rownames(inner) <- colnames(inner) <- names(mydesigns) <- names(myinformations) <- names(myinformation_pairs) <- myterms[-M]
   return(structure(list(terms=myterms,random.terms=myterms.random,Nparm=Nparm,df=mydf,
                         SS=SS,MSS=MSS,relations=relations,pvalue=pvalue,
                         inner=inner,response=!is.null(y),
                         informations=myinformations,
+                        information_pairs=myinformation_pairs,
                         coordinates=coordinates),
                    class="designDiagram"))
 }
