@@ -105,45 +105,47 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   y <- model.response(data)
   
   # for each of the terms make 
-  #   1) orthonormal design matrices
-  #   2) projection matrices for original parameters. TO DO: This is a new attempt in order to quantify balancedness
-  mydesigns <- vector("list",M)
-  myinformations <- vector("list",M)
-  myinformation_pairs <- vector("list",M)
+  #   1) check if it is a categorical factor
+  #   2) make design matrices in original parametrization for fixed effect
+  #   3) make orthonormal design matrices
+  myisfactor <- rep(TRUE,M)
+  myoriginals <- vector("list",M)
+  mydesigns   <- vector("list",M)
+#  myinformations <- vector("list",M)
+#  myinformation_pairs <- vector("list",M)
   Nparm <- rep(0,M)
   for (i in 1:M) {
     # removed square brackets if present
     tmp <- sub("[","",sub("]","",myterms[i],fixed=TRUE),fixed=TRUE)
     # make design matrix
     A <- model.matrix(as.formula(paste0("~0+",tmp)),data=data)
+    # check if is is a categorical factor
+    myisfactor[i] <- (length(setdiff(names(get_all_vars(as.formula(paste0("~0+",tmp)),data=data)),
+                                     names(attr(A,"contrasts"))))==0)
+    # remove zero columns
+    A <- A[,!apply(A,2,function(x){all(x==0)}),drop=FALSE]
     # centralize numerical variables?
-    if (center & (tmp!="1")) {
-      # Is there any variable, which is not a factor? Then remove intercept.
-      if (length(setdiff(names(get_all_vars(as.formula(paste0("~0+",tmp)),data=data)),
-                         names(attr(A,"contrasts"))))>0) {
-        A <- A - mean(c(A),na.rm=TRUE)
-      }
-#      # are all variables not factors? Then remove intercept
-#      if (is.null(attr(A,"contrasts"))) A <- A - mean(c(A),na.rm=TRUE)
+    if (center && (tmp!="1") && (!myisfactor[i])) {
+      A <- A - mean(c(A),na.rm=TRUE)
     }
     # remove non-needed attributed
     attr(A,"assign") <- NULL
     attr(A,"contrasts") <- NULL
-    # remove zero columns
-    A <- A[,!apply(A,2,function(x){all(x==0)}),drop=FALSE]
     # reduce to full rank (relative to eps) basis
     if (ncol(A)>0) tmp <- svd(A) # svd(A,nv=0)
     if ((ncol(A)>0) && (sum(tmp$d>eps)>0)) {
+      if (!is.element(myterms[i],myterms.random)) myoriginals[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]%*%diag(tmp$d[tmp$d>eps],nrow=sum(tmp$d>eps))%*%t(tmp$v[,tmp$d>eps,drop=FALSE])
       mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]
-      varcov <- tmp$v[,tmp$d>eps,drop=FALSE]%*%diag(1/tmp$d[tmp$d>eps]^2,nrow=sum(tmp$d>eps))%*%
-        t(tmp$v[,tmp$d>eps,drop=FALSE])
-      d <- sum(tmp$d>eps)
-      myinformations[[i]] <- 1/diag(varcov)
-      myinformation_pairs[[i]] <- round(1/outer(1:d,1:d,function(i,j) varcov[i+d*(i-1)]-varcov[i+d*(j-1)]-varcov[j+d*(i-1)]+varcov[j+d*(j-1)]),-log10(eps))
+#      varcov <- tmp$v[,tmp$d>eps,drop=FALSE]%*%diag(1/tmp$d[tmp$d>eps]^2,nrow=sum(tmp$d>eps))%*%
+#        t(tmp$v[,tmp$d>eps,drop=FALSE])
+#      d <- sum(tmp$d>eps)
+#      myinformations[[i]] <- 1/diag(varcov)
+#      myinformation_pairs[[i]] <- round(1/outer(1:d,1:d,function(i,j) varcov[i+d*(i-1)]-varcov[i+d*(j-1)]-varcov[j+d*(i-1)]+varcov[j+d*(j-1)]),-log10(eps))
     } else {
+      myoriginals[[i]] <- matrix(0,N,0)
       mydesigns[[i]] <- matrix(0,N,0)
-      myinformations[[i]] <- numeric(0)
-      myinformation_pairs[[i]] <- numeric(0)
+#      myinformations[[i]] <- numeric(0)
+#      myinformation_pairs[[i]] <- numeric(0)
     }
     # extract number of parameters
     Nparm[i] <- ncol(mydesigns[[i]])
@@ -196,9 +198,10 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
           }
           M <- M-1
           myterms <- myterms[-k]
+          myoriginals <- myoriginals[-k]
           mydesigns <- mydesigns[-k]
-          myinformations <- myinformations[-k]
-          myinformation_pairs <- myinformation_pairs[-k]
+#          myinformations <- myinformations[-k]
+#          myinformation_pairs <- myinformation_pairs[-k]
           Nparm <- Nparm[-k]
           relations <- relations[-k,-k,drop=FALSE]            
         }
@@ -234,10 +237,20 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
         M <- M+1
         myterms   <- c(myterms,tmp)
         Nparm     <- c(Nparm,NullDim)
+        myisfactor <- c(myisfactor,myisfactor[i] & myisfactor[j])
+        if (myisfactor[i] && myisfactor[j]) {
+          # Experimental: If both are factors, then use categorical minimum
+          tmp <- eval(substitute(with(df,minimum(x,y)),list(df=data,x=as.name(myterms[i]),y=as.name(myterms[j]))))
+          tmp <- svd(model.matrix(~0+tmp))
+          myoriginals <- c(myoriginals,list(tmp$u[,tmp$d>eps,drop=FALSE]%*%diag(tmp$d[tmp$d>eps],nrow=sum(tmp$d>eps))%*%t(tmp$v[,tmp$d>eps,drop=FALSE])))
+        } else {
+          # otherwise use orthonormal representation of nullspace
+          myoriginals <- c(myoriginals,list(NullSpace))
+        }
         mydesigns <- c(mydesigns,list(NullSpace))
-        varcov <- solve(t(NullSpace)%*%NullSpace); d <- NullDim
-        myinformations <- c(myinformations,list(1/diag(varcov))) # TO DO: is this correct?
-        myinformation_pairs <- c(myinformation_pairs,list(round(1/outer(1:d,1:d,function(i,j) varcov[i+d*(i-1)]-varcov[i+d*(j-1)]-varcov[j+d*(i-1)]+varcov[j+d*(j-1)]),-log10(eps))))
+#        varcov <- solve(t(NullSpace)%*%NullSpace); d <- NullDim
+#        myinformations <- c(myinformations,list(1/diag(varcov))) # TO DO: is this correct?
+#        myinformation_pairs <- c(myinformation_pairs,list(round(1/outer(1:d,1:d,function(i,j) varcov[i+d*(i-1)]-varcov[i+d*(j-1)]-varcov[j+d*(i-1)]+varcov[j+d*(j-1)]),-log10(eps))))
         relations[i,j] <- relations[j,i] <- myterms[M]
         relations <- cbind(rbind(relations,rep(NA,M-1)),rep(NA,M))
         relations[M,M] <- "="
@@ -298,9 +311,10 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   Nparm          <- Nparm[myorder]
   mydf           <- mydf[myorder]
   relations      <- relations[myorder,myorder]
+  myoriginals    <- myoriginals[myorder]
   mydesigns      <- mydesigns[myorder]
-  myinformations <- myinformations[myorder]
-  myinformation_pairs <- myinformation_pairs[myorder]
+#  myinformations <- myinformations[myorder]
+#  myinformation_pairs <- myinformation_pairs[myorder]
   
   # -------------------------------------------------------
   # Investigate orthogonality by computing inner products
@@ -450,6 +464,43 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
     }
   }
 
+  # compute variance-covariance matrices for each fixed effect relative to each random effect
+  myvarcov <- vector("list",0)
+  for (i in 1:length(myterms)) {
+    if (!is.element(myterms[i],myterms.random)) {
+      varcov <- vector("list",0)
+      for (j in 1:length(myterms)) {
+        if (is.element(myterms[j],myterms.random)) {
+          # compute variance-covariance matrix for term i relative to term j
+          if (myterms[j]!="[I]") {
+            # to reuse computations we first make square roots for non-[I] terms
+            varcov <- c(varcov,list(solve(t(myoriginals[[i]])%*%myoriginals[[i]],
+                                          t(myoriginals[[i]])%*%mydesigns[[j]])))
+          } else {
+            # take care of [I], also in case of other random effects
+            if (length(varcov)==0) {
+              c(varcov,list(solve(t(myoriginals[[i]])%*%myoriginals[[i]])))
+            } else {
+              # [I] is the last term, so we can subtract the squares of the other terms
+              varcov <- c(varcov,list(solve(t(myoriginals[[i]])%*%myoriginals[[i]]) - 
+                                        Reduce("+",lapply(varcov,function(x){x%*%t(x)}))))
+            }
+          }
+        }
+      }
+      # square all terms prior to [I]
+      # TO DO: invoke singular values
+      tmp <- length(myterms.random)-1 
+      if (tmp>0) {
+        varcov[1:tmp] <- lapply(varcov[1:tmp],function(x){x%*%t(x)})
+      }
+      # add names
+      names(varcov) <- myterms.random
+      myvarcov <- c(myvarcov,list(varcov))
+    }
+  }
+  names(myvarcov) <- setdiff(myterms,myterms.random)
+  
   # make data frame with coordinates of nodes in a Sugiyama layout  
   from <- 1+(which(relations=="<-")-1)%/%length(myterms)
   to   <- 1+(which(relations=="<-")-1)%%length(myterms)
@@ -466,12 +517,11 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
     colnames(SS) <- colnames(MSS) <- rownames(relations) <- colnames(relations) <- 
     rownames(pvalue) <- colnames(pvalue) <- myterms
   rownames(SS) <- rownames(MSS) <- c("-",myterms.remove)
-  rownames(inner) <- colnames(inner) <- names(mydesigns) <- names(myinformations) <- names(myinformation_pairs) <- myterms[-M]
+  rownames(inner) <- colnames(inner) <- names(mydesigns) <- myterms[-M]
   return(structure(list(terms=myterms,random.terms=myterms.random,Nparm=Nparm,df=mydf,
                         SS=SS,MSS=MSS,relations=relations,pvalue=pvalue,
                         inner=inner,response=!is.null(y),
-                        informations=myinformations,
-                        information_pairs=myinformation_pairs,
+                        varcov=myvarcov,
                         coordinates=coordinates),
                    class="designDiagram"))
 }

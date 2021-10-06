@@ -14,8 +14,7 @@
 #'   \item{\code{pvalue}}{Named matrix with p-values for Type-I F-tests. p-values are stated at the collapsed nesting, but F-test are done against the most coarse nested random effect.}
 #'   \item{\code{inner}}{Named matrix of squared inner products of subspaces with nesting subspaces removed. Rounded at order of \code{eps} in the call to \code{link{DD}}. Used to decide orthogonality of the design.}
 #'   \item{\code{response}}{Logical stating whether a response variable was present.}
-#'   \item{\code{informations}}{Named list of inverse variances for parameter estimates. Rounded at order of \code{eps}.}
-#'   \item{\code{information_pairs}}{Named list of inverse variances for contrasts between parameter estimates. Rounded at order of \code{eps}.}
+#'   \item{\code{varcov}}{Named list of variance-covariance matrix for fixed effects relative to each of the random effects. Rounded at order of \code{eps}.}
 #'   \item{\code{coordinates}}{Data frame with node coordinates of the terms. Initialized in Sugiyama layout.}
 #' }
 #' 
