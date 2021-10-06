@@ -474,16 +474,16 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
           # compute variance-covariance matrix for term i relative to term j
           if (myterms[j]!="[I]") {
             # to reuse computations we first make square roots for non-[I] terms
-            varcov <- c(varcov,list(solve(t(myoriginals[[i]])%*%myoriginals[[i]],
-                                          t(myoriginals[[i]])%*%mydesigns[[j]])))
+            varcov <- c(varcov,list(round(solve(t(myoriginals[[i]])%*%myoriginals[[i]],
+                                                t(myoriginals[[i]])%*%mydesigns[[j]]),-log10(eps))))
           } else {
             # take care of [I], also in case of other random effects
             if (length(varcov)==0) {
-              c(varcov,list(solve(t(myoriginals[[i]])%*%myoriginals[[i]])))
+              varcov <- c(varcov,list(round(solve(t(myoriginals[[i]])%*%myoriginals[[i]]),-log10(eps))))
             } else {
               # [I] is the last term, so we can subtract the squares of the other terms
-              varcov <- c(varcov,list(solve(t(myoriginals[[i]])%*%myoriginals[[i]]) - 
-                                        Reduce("+",lapply(varcov,function(x){x%*%t(x)}))))
+              varcov <- c(varcov,list(round(solve(t(myoriginals[[i]])%*%myoriginals[[i]]),-log10(eps)) - 
+                                      Reduce("+",lapply(varcov,function(x){x%*%t(x)}))))
             }
           }
         }

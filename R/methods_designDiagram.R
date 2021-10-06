@@ -173,7 +173,7 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
     # terms that will have circles
     myterms <- setdiff(x$terms,attr(terms(kill,keep.order=TRUE),"term.labels"))
     if (attr(terms(kill),"intercept")==1) myterms <- setdiff(myterms,"1")
-    if (circle=="I") myterms <- setdiff(myterms,"[I]")
+    if (circle=="I") myterms <- intersect(myterms,names(x$varcov))
     
     # choose maximal radius
     max.r <- circle.scaling*0.5*sqrt(outer(g$x,g$x,"-")^2 + outer(g$y,g$y,"-")^2)
@@ -233,7 +233,10 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
       area <- switch(circle,
                      SS={x$SS[1,myterms]},
                      MSS={x$MSS[1,myterms]},
-                     I={unlist(lapply(x$informations[myterms],mean))})
+                     I={
+                       # TO DO: Update to allow for heterogeneous random effect variances
+                       unlist(lapply(lapply(myDD$varcov[myterms],function(y) Reduce("+",y)),
+                                     function(z) mean(1/diag(z))))})
       area <- ifelse(is.nan(area),0,area)
       
       mydf <- g[order(as.numeric(g$name)),]
@@ -243,7 +246,8 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
       # add circles
       if (circle=="I") {
         # compute information spread
-        tmp <- unlist(lapply(x$informations[myterms],function(z){sqrt(mean((z-mean(z))^2))}))
+        tmp <- unlist(lapply(lapply(lapply(myDD$varcov[myterms],function(y) Reduce("+",y)),
+                                    function(z) 1/diag(z)),function(u) mean((u-mean(u))^2)))
         mydf$information_spread <- ifelse(is.nan(tmp),0,tmp)
         # if completely balanced information, then only use 1 color
         if (max(mydf$information_spread)==0) color <- rep(color[1],2)
