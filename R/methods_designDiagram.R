@@ -14,14 +14,16 @@
 #'   \item{\code{pvalue}}{Named matrix with p-values for Type-I F-tests. p-values are stated at the collapsed nesting, but F-test are done against the most coarse nested random effect.}
 #'   \item{\code{inner}}{Named matrix of squared inner products of subspaces with nesting subspaces removed. Rounded at order of \code{eps} in the call to \code{link{DD}}. Used to decide orthogonality of the design.}
 #'   \item{\code{response}}{Logical stating whether a response variable was present.}
+#'   \item{\code{sigma2}}{Named vector of random effects variance estimates.}
 #'   \item{\code{varcov}}{Named list of variance-covariance matrix for fixed effects relative to each of the random effects. Rounded at order of \code{eps}.}
 #'   \item{\code{coordinates}}{Data frame with node coordinates of the terms. Initialized in Sugiyama layout.}
 #' }
 #' 
 #' @param x object of class \code{designDiagram}
 #' @param object object of class \code{designDiagram}
-#' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"I"}=a circle with area proportional to average information and color coding via spread of the information. The options \code{SS} and \code{MSS} are only available if a response variable was specified for the design. Defaults to \code{"none"}.
+#' @param circle character specifying which circles to draw at the terms: \code{"none"}=no circles, \code{"SS"}=a circle with area proportional to the associated Sum-of-Squares, \code{"MSS"}=a circle with area proportional to the associated Mean-Sum-of-Squares, \code{"I"}=a circle with area proportional to average information, \code{"I2"}=a circle with area proportional to average information of the parameter contrasts. Defaults to \code{"none"}.
 #' @param pvalue boolean specifying whether p-values should be inserted on the graphs. This is only possible if a response variable was specified. Defaults to \code{TRUE} is \code{circle="MSS"} and \code{FALSE} otherwise.
+#' @param sigma2 vector of random effects variances. Defaults to \code{NULL}, in which case the estimates are used (if present), otherwise all variances are set to 1.
 #' @param kill formula specifying which cirlces not to plot. Defaults to \code{~1} corresponding to not plotting the intercept term (that otherwise may overweight the remaining terms).
 #' @param ca boolean deciding whether collinearity analysis is visualized. If \code{NULL} then set \code{TRUE} for non-orthogonal designs, and to \code{FALSE} for orthogonal designs. Defaults to \code{FALSE}.
 #' @param max.area numeric specifying the used maximal area of circles. If \code{NULL} then \code{max.area} is derived from \code{SS}, \code{MSS} or \code{I} according to value of \code{circle}. Defaults to \code{NULL}.
@@ -34,7 +36,12 @@
 #' @param horizontal boolean specifying if the design diagram should be drawn horizontally or vertically. Defaults to \code{TRUE}.
 #' @param ... not used.
 #' 
-#' @details If \code{color=NULL} and \code{ca=FALSE}, then the defaults colors are \code{"lightgreen"} for Sum-of-Squares, \code{"lightblue"} for Mean-Sum-of-Squares, and a gradient from \code{"limegreen"} to \code{"orange"} for information spread. To specify a different gradient in case of the information spread, then give a vector of two colors.
+#' @details For \code{plot.designDiagram} the options \code{circle="SS"} and \code{circle="MSS"} are only available if a response variable was specified for the design. 
+#' For \code{circle="I"} and \code{circle="I2"} the color of the circles visualize the coefficient of variation of the informations. For the computation of the informations the variances of the random effects are either estimated (if a response variable is present), all set to 1 (otherwise), or given via the option \code{sigma2}.
+#' 
+#' If \code{color=NULL} and \code{ca=FALSE}, then the defaults colors are \code{"lightgreen"} for Sum-of-Squares, \code{"lightblue"} for Mean-Sum-of-Squares, and a gradient from \code{"limegreen"} to \code{"orange"} for information spread. To specify a different color gradient in the latter case, then give a vector of two colors.
+#' 
+#' For \code{update.designDiagram} the second argument should be a data frame with new \code{coordinates}. This can be usefull for manually setting the coordinates for plotting.
 #' 
 #' @seealso \code{\link{DD}}
 #' 
@@ -93,11 +100,15 @@ summary.designDiagram <- function(object,...) {
 }
 
 # Hack: Define generic functions by stealing from stats-package.
-#setGeneric("update",stats::update)
+# setGeneric("update",stats::update)
+
+#' @importFrom stats update
 
 #' @rdname designDiagram-class
 #' @export
-update.designDiagram <- function(object,new=NULL) {
+update.designDiagram <- function(object,...) {
+  # take variable name from call
+  new = list(...)
   # take rownames for object
   ii <- match(rownames(object$coordinates),
               rownames(new$coordinates))
@@ -109,7 +120,7 @@ update.designDiagram <- function(object,new=NULL) {
 
 #' @rdname designDiagram-class
 #' @export
-plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
+plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),sigma2=NULL,
                                kill=~1,ca=FALSE,max.area=NULL,relative=0.01,
                                color=NULL,circle.scaling=1,
                                arrow.type=arrow(angle=20,length=unit(4,"mm")),
@@ -160,9 +171,9 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
                         y=y+0.5*diff(ylim)*grid::convertY(unit(attr(ggraph::label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE)))
   
   # Radii of circles
-  if (is.element(circle,c("SS","MSS","I"))) {
+  if (is.element(circle,c("SS","MSS","I","I2"))) {
     # switch off collinearity analysis when information is visualized
-    if (circle=="I") ca <- FALSE
+    if (is.element(circle,c("I","I2"))) ca <- FALSE
     
     # use default colors?
     if (is.null(color)) color <- switch(circle,
@@ -173,7 +184,12 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
     # terms that will have circles
     myterms <- setdiff(x$terms,attr(terms(kill,keep.order=TRUE),"term.labels"))
     if (attr(terms(kill),"intercept")==1) myterms <- setdiff(myterms,"1")
-    if (circle=="I") myterms <- intersect(myterms,names(x$varcov))
+    if (is.element(circle,c("I","I2"))) myterms <- intersect(myterms,names(x$varcov))
+    if (circle=="I2") myterms <- intersect(myterms,names(x$Nparm[x$Nparm>1]))
+
+    # set variance parameters
+    if (is.null(sigma2))    sigma2 <- x$sigma2
+    if (any(is.na(sigma2))) sigma2[] <- 1
     
     # choose maximal radius
     max.r <- circle.scaling*0.5*sqrt(outer(g$x,g$x,"-")^2 + outer(g$y,g$y,"-")^2)
@@ -229,33 +245,54 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),
       # coord fixed
       p <- p + coord_fixed()
     } else {
+      # help function for I2: informations for pairwise contrasts
+      myfct <- function(y) 1/apply(do.call("rbind",sapply(2:ncol(y),function(i) cbind(i,1:(i-1)),simplify=FALSE)),
+                                   1,function(z) c(1,-1)%*%y[z,z]%*%c(1,-1))
       # without collinearity analysis
       area <- switch(circle,
                      SS={x$SS[1,myterms]},
                      MSS={x$MSS[1,myterms]},
-                     I={
-                       # TO DO: Update to allow for heterogeneous random effect variances
-                       unlist(lapply(lapply(myDD$varcov[myterms],function(y) Reduce("+",y)),
-                                     function(z) mean(1/diag(z))))})
+                     I={unlist(lapply(lapply(lapply(x$varcov[myterms],
+                               function(y) Map("*",sigma2,y)),
+                               function(y) Reduce("+",y)),
+                               function(y) mean(1/diag(y))))},
+                     I2={unlist(lapply(lapply(lapply(lapply(x$varcov[myterms],
+                                function(y) Map("*",sigma2,y)),
+                                function(y) Reduce("+",y)),
+                                myfct),
+                                mean))})
       area <- ifelse(is.nan(area),0,area)
-      
+
       mydf <- g[order(as.numeric(g$name)),]
       mydf <- mydf[is.element(x$terms,myterms),]
       mydf$r <- max.r*sqrt(area/ifelse(is.null(max.area),max(area,na.rm=TRUE),max.area))
 
       # add circles
-      if (circle=="I") {
-        # compute information spread
-        tmp <- unlist(lapply(lapply(lapply(myDD$varcov[myterms],function(y) Reduce("+",y)),
-                                    function(z) 1/diag(z)),function(u) mean((u-mean(u))^2)))
-        mydf$information_spread <- ifelse(is.nan(tmp),0,tmp)
+      if (is.element(circle,c("I","I2"))) {
+        # compute var(information)
+        tmp <- switch(circle,
+                      I={unlist(lapply(lapply(lapply(lapply(x$varcov[myterms],
+                                function(y) Map("*",sigma2,y)),
+                                function(y) Reduce("+",y)),
+                                function(y) 1/diag(y)),
+                                function(y) mean((y-mean(y))^2)))},
+                      I2={unlist(lapply(lapply(lapply(lapply(x$varcov[myterms],
+                                 function(y) Map("*",sigma2,y)),
+                                 function(y) Reduce("+",y)),
+                                 myfct),
+                                 function(y) mean((y-mean(y))^2)))})
+        cv <- ifelse(is.nan(tmp),0,sqrt(tmp)/area)
+        mydf$cv <- cv
         # if completely balanced information, then only use 1 color
-        if (max(mydf$information_spread)==0) color <- rep(color[1],2)
+        if (max(cv)==0) color <- rep(color[1],2)
+        # guide name
+        tmp <- ifelse(circle=="I","CV(main)","CV(pairs)")
         # add circles
-        p <- p + ggraph::geom_node_circle(aes(r=r,color=information_spread,fill=information_spread),data=mydf) +
+        p <- p + ggraph::geom_node_circle(aes(r=r,color=cv,fill=cv),data=mydf) +
           coord_fixed() + 
-          scale_color_gradient(low=color[1],high=color[2],limits=c(0,NA)) + 
-          scale_fill_gradient(low=color[1],high=color[2],limits=c(0,NA))
+          ggplot2::scale_color_gradient(low=color[1],high=color[2],limits=c(0,NA)) + 
+          ggplot2::scale_fill_gradient(low=color[1],high=color[2],limits=c(0,NA)) +
+          ggplot2::labs(color=tmp,fill=tmp)
       } else {
         p <- p + ggraph::geom_node_circle(aes(r=r),data=mydf,col=color,fill=color) +
           coord_fixed()
