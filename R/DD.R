@@ -488,9 +488,10 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
     rownames(pvalue) <- colnames(pvalue) <- myterms
   rownames(SS) <- rownames(MSS) <- c("-",myterms.remove)
   rownames(inner) <- colnames(inner) <- names(mybasis) <- myterms[-M]
-  return(structure(list(terms=myterms,random.terms=myterms.random,Nparm=Nparm,df=mydf,
-                        SS=SS,MSS=MSS,relations=relations,pvalue=pvalue,
-                        inner=inner,response=!is.null(y),
+  return(structure(list(response=!is.null(y),terms=myterms,random.terms=myterms.random,
+                        relations=relations,inner=inner,
+                        Nparm=Nparm,df=mydf,
+                        SS=SS,MSS=MSS,pvalue=pvalue,
                         sigma2=sigma2, varcov=myvarcov,
                         coordinates=coordinates),
                    class="designDiagram"))
