@@ -79,8 +79,8 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   
   
   # find terms in the design and place square brackets around random terms
-  myterms <- attr(terms(fixed),"term.labels")
-  if (attr(terms(fixed),"intercept")==1) {
+  myterms <- attr(terms(fixed,data=data),"term.labels")
+  if (attr(terms(fixed,data=data),"intercept")==1) {
     myterms <- c("1",myterms)
   } else {
     # if no intercept, then centralization is switched off!
@@ -89,7 +89,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   if (is.null(random)) {myterms.random <- NULL} else {
     # terms in random-option will be treated as random
     # but these may also be given in fixed-option to specify the order
-    myterms.random <- attr(terms(random),"term.labels")
+    myterms.random <- attr(terms(random,data=data),"term.labels")
     if (length(myterms.random)>0) {
       myterms <- c(myterms,setdiff(myterms.random,myterms))
       i <- is.element(myterms,myterms.random)
@@ -232,7 +232,9 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
         myisfactor <- c(myisfactor,myisfactor[i] & myisfactor[j])
         if (myisfactor[i] && myisfactor[j]) {
           # Experimental: If both are factors, then use categorical minimum
-          tmp <- eval(substitute(with(df,LabApplStat::minimum(x,y)),list(df=data,x=as.name(myterms[i]),y=as.name(myterms[j]))))
+          tmp <- eval(substitute(with(df,LabApplStat::minimum(x,y)),
+                                 list(df=data,x=as.name(sub("[","",sub("]","",myterms[i],fixed=TRUE),fixed=TRUE)),
+                                      y=as.name(sub("[","",sub("]","",myterms[j],fixed=TRUE),fixed=TRUE)))))
           tmp <- svd(model.matrix(~0+tmp))
           mydesigns <- c(mydesigns,list(tmp$u[,tmp$d>eps,drop=FALSE]%*%diag(tmp$d[tmp$d>eps],nrow=sum(tmp$d>eps))%*%t(tmp$v[,tmp$d>eps,drop=FALSE])))
         } else {
