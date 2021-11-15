@@ -13,6 +13,16 @@
 #' 
 #' @author Bo Markussen
 #' 
+#' @examples 
+#' # Data from: C.I. Bliss, "The calculation of the dose-mortality curve", Annals of Applied Biology, 134–167, 1935.
+#' \dontrun{
+#'   # import data from dobson package
+#'   library(dobson)
+#'   data(beetle)
+#'   m0 <- glm(cbind(y,n-y)~x,data=beetle,family=binomial(link="probit"))
+#'   emmeans_ED(m0,~0,left=list(x=0),right=list(x=1),p=seq(0.1,0.9,0.1),tran="log10")
+#' }
+#' 
 #' @export 
 emmeans_ED <- function(object,specs,left,right,tran=NULL,p=0.5,p.name="probability") {
   # Find reference grids

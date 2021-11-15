@@ -32,6 +32,17 @@ emmeans_ED(
 \description{
 Solves linear equations in continuous explanatory variables in order to find the expected dose. A typical application could be to find LD50, i.e. the lethal dose killing 50 percent of the population, from a probit analysis fitted by \code{\link{glm}}. The associated variance-covariance matrix is found using the Delta method.
 }
+\examples{
+# Data from: C.I. Bliss, "The calculation of the dose-mortality curve", Annals of Applied Biology, 134–167, 1935.
+\dontrun{
+  # import data from dobson package
+  library(dobson)
+  data(beetle)
+  m0 <- glm(cbind(y,n-y)~x,data=beetle,family=binomial(link="probit"))
+  emmeans_ED(m0,~0,left=list(x=0),right=list(x=1),p=seq(0.1,0.9,0.1),tran="log10")
+}
+
+}
 \author{
 Bo Markussen
 }
