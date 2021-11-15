@@ -408,9 +408,9 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
             # update ranef_mat matrix using the orthogonalized designs
             for (k in setdiff(myterms.random,"[I]")) {
               tmp <- t(A)%*%mydesigns[[match(k,myterms)]]
-              ranef_mat[myterms[j],k] <- sum(diag(tmp%*%t(tmp)))
+              ranef_mat[myterms[j],k] <- sum(diag(tmp%*%t(tmp))) / mydf[match(k,myterms)]
             }
-            ranef_mat[myterms[j],"[I]"] <- sum(diag(t(A)%*%A)) 
+            ranef_mat[myterms[j],"[I]"] <- sum(diag(t(A)%*%A)) / mydf[match(k,myterms)]
           }
         } else {
           A <- matrix(0,N,0)
