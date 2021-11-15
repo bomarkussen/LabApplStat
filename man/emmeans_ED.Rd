@@ -45,7 +45,18 @@ Find the 'expected dose' along a gradient in the space of numeric predictor vari
   library(dobson)
   data(beetle)
   m0 <- glm(cbind(y,n-y)~x,data=beetle,family=binomial(link="probit"))
-  emmeans_ED(m0,p=seq(0.1,0.9,0.1),tran="log10")
+  # ED50
+  summary(emmeans_ED(m0,tran="log10"),type="response")
+  # Visualization using the tidyverse
+  library(tidyverse)
+  emmeans_ED(m0,p=seq(0.01,0.99,0.01),tran="log10") \%>\% 
+    summary(type="response") \%>\% as.data.frame() \%>\% 
+    mutate(probability=as.numeric(as.character(probability))) \%>\%
+    ggplot(aes(x=probability,y=response,ymin=asymp.LCL,ymax=asymp.UCL)) + 
+    geom_ribbon(alpha=0.2,fill="blue") + geom_line() +
+    xlab("Death probability") +
+    ylab(expression(expected~dose~CS[2]~mg/l)) +
+    geom_point(aes(x=y/n,y=10^x),beetle,inherit.aes=FALSE)
 }
 
 }
