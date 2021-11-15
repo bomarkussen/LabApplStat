@@ -4,12 +4,16 @@
 #' Solves linear equations in continuous explanatory variables in order to find the expected dose. A typical application could be to find LD50, i.e. the lethal dose killing 50 percent of the population, from a probit analysis fitted by \code{\link{glm}}. The associated variance-covariance matrix is found using the Delta method.
 #' 
 #' @param object An object that can be given to \code{\link[emmeans]{emmeans}}. Typically a model fitted by \code{\link{glm}}.
-#' @param specs As for \code{\link[emmeans]{emmeans}}. Typically as one-sided \code{\link{formula}}.
-#' @param left A list specifying the left end point of the linear span of continuous variables in which to measure the ED values.
-#' @param right A list specifying the right end point of the linear span of continuous variables in which to measure the ED values.
+#' @param specs As for \code{\link[emmeans]{emmeans}}. Typically as one-sided \code{\link{formula}}. Defaults to \code{~0}.
+#' @param left A list specifying the left end point of the linear span of continuous variables in which to measure the ED values. Defaults to \code{NULL}.
+#' @param right A list specifying the right end point of the linear span of continuous variables in which to measure the ED values. Defaults to \code{NULL}.
 #' @param tran Possible transformation of the scale of the ED values. If given then backtransformation can be done using the technology of the \code{\link[emmeans]{emmeans}}. The default value \code{tran=NULL} corresponds to no transformation.
 #' @param p Numeric vector given the targeted predictions. Typically probabilities, where the default value \code{p=0.5} corresponds to ED50.
 #' @param p.name The name of the variable containing \code{p}. If \code{p} contains more than one value, then this will also appear in \code{@misc$by.vars} in the \code{emmGrid} object. Defaults to \code{p.name="probability"}.
+#' 
+#' @return An object of class \code{\link[emmeans]{emmGrid-class}}.
+#'
+#' @details Find the 'expected dose' along a gradient in the space of numeric predictor variables. The options 'left' and 'right' specify the endpoints of this gradient. Typically these endpoints should be chosen as 0 and 1 for the numeric predictor of interest. If both endpoints are chosen as NULL then these choices are taken for all numeric predictors.
 #' 
 #' @author Bo Markussen
 #' 
@@ -20,11 +24,22 @@
 #'   library(dobson)
 #'   data(beetle)
 #'   m0 <- glm(cbind(y,n-y)~x,data=beetle,family=binomial(link="probit"))
-#'   emmeans_ED(m0,~0,left=list(x=0),right=list(x=1),p=seq(0.1,0.9,0.1),tran="log10")
+#'   emmeans_ED(m0,p=seq(0.1,0.9,0.1),tran="log10")
 #' }
 #' 
 #' @export 
-emmeans_ED <- function(object,specs,left,right,tran=NULL,p=0.5,p.name="probability") {
+emmeans_ED <- function(object,specs=~0,left=NULL,right=NULL,tran=NULL,p=0.5,p.name="probability") {
+  # Sanity check for 'left' and 'right' 
+  if (xor(is.null(left),is.null(right))) stop("One and only one of 'left' and 'right' is null")
+  if (is.null(left) & is.null(right)) {
+    # Default handling of continuous covariates 
+    tmp <- attr(object$term,"dataClasses")[attr(object$term,"term.labels")]
+    tmp <- names(tmp[tmp=="numeric"])
+    if (length(tmp)==0) stop("There must be at least one numeric covariate")
+    left  <- as.list(rep(0,length(tmp))); names(left)  <- tmp
+    right <- as.list(rep(1,length(tmp))); names(right) <- tmp
+  }
+  
   # Find reference grids
   suppressMessages(em0 <- emmeans(object,specs,at=left))
   suppressMessages(em1 <- emmeans(object,specs,at=right))

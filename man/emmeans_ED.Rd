@@ -6,9 +6,9 @@
 \usage{
 emmeans_ED(
   object,
-  specs,
-  left,
-  right,
+  specs = ~0,
+  left = NULL,
+  right = NULL,
   tran = NULL,
   p = 0.5,
   p.name = "probability"
@@ -17,11 +17,11 @@ emmeans_ED(
 \arguments{
 \item{object}{An object that can be given to \code{\link[emmeans]{emmeans}}. Typically a model fitted by \code{\link{glm}}.}
 
-\item{specs}{As for \code{\link[emmeans]{emmeans}}. Typically as one-sided \code{\link{formula}}.}
+\item{specs}{As for \code{\link[emmeans]{emmeans}}. Typically as one-sided \code{\link{formula}}. Defaults to \code{~0}.}
 
-\item{left}{A list specifying the left end point of the linear span of continuous variables in which to measure the ED values.}
+\item{left}{A list specifying the left end point of the linear span of continuous variables in which to measure the ED values. Defaults to \code{NULL}.}
 
-\item{right}{A list specifying the right end point of the linear span of continuous variables in which to measure the ED values.}
+\item{right}{A list specifying the right end point of the linear span of continuous variables in which to measure the ED values. Defaults to \code{NULL}.}
 
 \item{tran}{Possible transformation of the scale of the ED values. If given then backtransformation can be done using the technology of the \code{\link[emmeans]{emmeans}}. The default value \code{tran=NULL} corresponds to no transformation.}
 
@@ -29,8 +29,14 @@ emmeans_ED(
 
 \item{p.name}{The name of the variable containing \code{p}. If \code{p} contains more than one value, then this will also appear in \code{@misc$by.vars} in the \code{emmGrid} object. Defaults to \code{p.name="probability"}.}
 }
+\value{
+An object of class \code{\link[emmeans]{emmGrid-class}}.
+}
 \description{
 Solves linear equations in continuous explanatory variables in order to find the expected dose. A typical application could be to find LD50, i.e. the lethal dose killing 50 percent of the population, from a probit analysis fitted by \code{\link{glm}}. The associated variance-covariance matrix is found using the Delta method.
+}
+\details{
+Find the 'expected dose' along a gradient in the space of numeric predictor variables. The options 'left' and 'right' specify the endpoints of this gradient. Typically these endpoints should be chosen as 0 and 1 for the numeric predictor of interest. If both endpoints are chosen as NULL then these choices are taken for all numeric predictors.
 }
 \examples{
 # Data from: C.I. Bliss, "The calculation of the dose-mortality curve", Annals of Applied Biology, 134–167, 1935.
@@ -39,7 +45,7 @@ Solves linear equations in continuous explanatory variables in order to find the
   library(dobson)
   data(beetle)
   m0 <- glm(cbind(y,n-y)~x,data=beetle,family=binomial(link="probit"))
-  emmeans_ED(m0,~0,left=list(x=0),right=list(x=1),p=seq(0.1,0.9,0.1),tran="log10")
+  emmeans_ED(m0,p=seq(0.1,0.9,0.1),tran="log10")
 }
 
 }
