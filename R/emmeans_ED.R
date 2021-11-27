@@ -18,24 +18,29 @@
 #' @author Bo Markussen
 #' 
 #' @examples 
-#' # Data from: C.I. Bliss, "The calculation of the dose-mortality curve", Annals of Applied Biology, 134–167, 1935.
+#' # Data from: C.I. Bliss, "The calculation of the dose-mortality curve", 
+#' # Annals of Applied Biology, 134–167, 1935.
 #' \dontrun{
-#'   # import data from dobson package
-#'   library(dobson)
-#'   data(beetle)
-#'   m0 <- glm(cbind(y,n-y)~x,data=beetle,family=binomial(link="probit"))
-#'   # ED50
-#'   summary(emmeans_ED(m0,tran="log10"),type="response")
-#'   # Visualization using the tidyverse
-#'   library(tidyverse)
-#'   emmeans_ED(m0,p=seq(0.01,0.99,0.01),tran="log10") %>% 
-#'     summary(type="response") %>% as.data.frame() %>% 
-#'     mutate(probability=as.numeric(as.character(probability))) %>%
-#'     ggplot(aes(x=probability,y=response,ymin=asymp.LCL,ymax=asymp.UCL)) + 
-#'     geom_ribbon(alpha=0.2,fill="blue") + geom_line() +
-#'     xlab("Death probability") +
-#'     ylab(expression(expected~dose~CS[2]~mg/l)) +
-#'     geom_point(aes(x=y/n,y=10^x),beetle,inherit.aes=FALSE)
+#' # import data from dobson package
+#' library(dobson)
+#' data(beetle)
+#' m0 <- glm(cbind(y,n-y)~x,data=beetle,family=binomial(link="cloglog"))
+#' # ED50 computation
+#' summary(emmeans_ED(m0,tran="log10"),type="response")
+#' # Visualization using the tidyverse
+#' library(tidyverse)
+#' LCL <- Vectorize(function(y,n) binom.test(y,n)$conf.int[1])
+#' UCL <- Vectorize(function(y,n) binom.test(y,n)$conf.int[2])
+#' beetle <- mutate(beetle,LCL=LCL(y,n),UCL=UCL(y,n))
+#' emmeans_ED(m0,p=seq(0.001,0.999,length.out=100),tran="log10") %>% 
+#'   summary(type="response") %>% as.data.frame() %>% 
+#'   mutate(probability=as.numeric(as.character(probability))) %>%
+#'   ggplot(aes(x=probability,y=response,ymin=asymp.LCL,ymax=asymp.UCL)) + 
+#'   geom_ribbon(alpha=0.2,fill="blue") + geom_line() +
+#'   xlab("Death probability") +
+#'   ylab(expression(expected~dose~CS[2]~mg/l)) +
+#'   geom_errorbarh(aes(xmin=LCL,xmax=UCL,y=10^x),beetle,inherit.aes=FALSE) +
+#'   geom_point(aes(x=y/n,y=10^x),beetle,inherit.aes=FALSE)
 #' }
 #' 
 #' @export 
