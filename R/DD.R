@@ -47,7 +47,7 @@
 #' plot(myDD,"MSS")
 #' plot(myDD,"I2")
 #' 
-#' \dontrun{
+#' \donttest{
 #'   # ANCOVA: Non-orthogonal design
 #'   library(isdals)
 #'   data(birthweight)
@@ -67,17 +67,6 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   # Initialize
   # -------------------------
 
-  # find model frame and number of rows
-  N.all <- nrow(data)
-  if (is.null(random)) {
-    data <- model.frame(fixed,data)
-  } else {
-    data <- model.frame(update(fixed,as.formula(paste(as.character(random),collapse=".+"))),data)
-  }
-  N <- nrow(data)
-  if (N!=N.all) warning(paste("Removed",N.all-N,"rows with missing values in response or explanatory variables"))
-  
-  
   # find terms in the design and place square brackets around random terms
   myterms <- attr(terms(fixed,data=data),"term.labels")
   if (attr(terms(fixed,data=data),"intercept")==1) {
@@ -103,9 +92,6 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   # TO DO: Should we allow for M=0 below? If so, then updates are required
   if (M==0) stop("There should be at least one term (including the intercept)")
 
-  # extract response variable if it is present
-  y <- model.response(data)
-  
   # for each term
   #   1) check if it is a categorical factor
   #   2) find design matrices in the original parametrization
@@ -143,6 +129,22 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
     # extract number of parameters
     Nparm[i] <- ncol(mybasis[[i]])
   }
+
+  
+  # find model frame and number of rows
+  N.all <- nrow(data)
+  if (is.null(random)) {
+    data <- model.frame(fixed,data)
+  } else {
+    data <- model.frame(update(fixed,as.formula(paste(as.character(random),collapse=".+"))),data)
+  }
+  N <- nrow(data)
+  if (N!=N.all) warning(paste("Removed",N.all-N,"rows with missing values in response or explanatory variables"))
+  
+  
+  # extract response variable if it is present
+  y <- model.response(data)
+  
   
   # --------------------------------------------------------------------------
   # Complete relations:

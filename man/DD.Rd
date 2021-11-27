@@ -54,7 +54,7 @@ myDD <- DD(growth~antibiotica*vitamin,data=mydata)
 plot(myDD,"MSS")
 plot(myDD,"I2")
 
-\dontrun{
+\donttest{
   # ANCOVA: Non-orthogonal design
   library(isdals)
   data(birthweight)

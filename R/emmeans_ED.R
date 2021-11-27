@@ -20,7 +20,7 @@
 #' @examples 
 #' # Data from: C.I. Bliss, "The calculation of the dose-mortality curve", 
 #' # Annals of Applied Biology, 134–167, 1935.
-#' \dontrun{
+#' \donttest{
 #' # import data from dobson package
 #' library(dobson)
 #' data(beetle)

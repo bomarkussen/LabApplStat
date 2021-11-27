@@ -9,7 +9,7 @@ Authors@R:
            comment = c(ORCID = "0000-0001-7793-9620"))
 Depends: stats, graphics, emmeans, ggplot2
 Imports: ggraph, grid
-Suggests: isdals, estimability
+Suggests: isdals, estimability, dobson, tidyverse
 Description: Miscellaneous scripts, e.g. functionality to make and plot factor diagrams for the statistical design.
 License: GPL-3
 Encoding: UTF-8
