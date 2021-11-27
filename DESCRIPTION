@@ -1,5 +1,5 @@
 Package: LabApplStat
-Title: R package with miscellaneous scripts developed at the Data Science Laboratory, University of Copenhagen 
+Title: Miscellaneous scripts from the Data Science Laboratory (UCPH) 
 Version: 1.4.3
 Authors@R: 
     person(given = "Bo",
