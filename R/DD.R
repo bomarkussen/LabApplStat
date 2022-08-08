@@ -67,6 +67,16 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   # Initialize
   # -------------------------
 
+  # find model frame and number of rows
+  N.all <- nrow(data)
+  if (is.null(random)) {
+    data <- model.frame(fixed,data)
+  } else {
+    data <- model.frame(update(fixed,as.formula(paste(as.character(random),collapse=".+"))),data)
+  }
+  N <- nrow(data)
+  if (N!=N.all) warning(paste("Removed",N.all-N,"rows with missing values in response or explanatory variables"))
+
   # find terms in the design and place square brackets around random terms
   myterms <- attr(terms(fixed,data=data),"term.labels")
   if (attr(terms(fixed,data=data),"intercept")==1) {
@@ -123,6 +133,7 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
       mydesigns[[i]] <- tmp$u[,tmp$d>eps,drop=FALSE]%*%diag(tmp$d[tmp$d>eps],nrow=sum(tmp$d>eps))%*%t(tmp$v[,tmp$d>eps,drop=FALSE])
       mybasis[[i]]   <- tmp$u[,tmp$d>eps,drop=FALSE]
     } else {
+      N <- nrow(data)  # Hack: Check this!
       mydesigns[[i]] <- matrix(0,N,0)
       mybasis[[i]] <- matrix(0,N,0)
     }
@@ -130,17 +141,6 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
     Nparm[i] <- ncol(mybasis[[i]])
   }
 
-  
-  # find model frame and number of rows
-  N.all <- nrow(data)
-  if (is.null(random)) {
-    data <- model.frame(fixed,data)
-  } else {
-    data <- model.frame(update(fixed,as.formula(paste(as.character(random),collapse=".+"))),data)
-  }
-  N <- nrow(data)
-  if (N!=N.all) warning(paste("Removed",N.all-N,"rows with missing values in response or explanatory variables"))
-  
   
   # extract response variable if it is present
   y <- model.response(data)
