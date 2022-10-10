@@ -8,11 +8,11 @@ Authors@R:
            email = "bomar@math.ku.dk",
            comment = c(ORCID = "0000-0001-7793-9620"))
 Depends: stats, graphics, emmeans, ggplot2
-Imports: ggraph, grid
+Imports: ggraph, grid, vctrs
 Suggests: isdals, estimability, dobson, tidyverse
 Description: Miscellaneous scripts, e.g. functionality to make and plot factor diagrams for the statistical design.
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.1

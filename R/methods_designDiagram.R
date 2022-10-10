@@ -163,13 +163,16 @@ plot.designDiagram <- function(x,circle="none",pvalue=(circle=="MSS"),sigma2=NUL
   g$text  <- paste0('"',x$terms,'"[',x$df,']^',x$Nparm)[as.numeric(g$name)]
   g$text0 <- paste0(x$terms,x$Nparm)[as.numeric(g$name)]
 
-  # make graph
-  p <- ggraph::ggraph(g) + 
-    geom_blank(aes(x=x-0.5*diff(xlim)*grid::convertX(unit(attr(ggraph::label_rect(text0,fontsize=18),"width"),"cm"),"npc",valueOnly = TRUE),
-                        y=y-0.5*diff(ylim)*grid::convertY(unit(attr(ggraph::label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE))) +
-    geom_blank(aes(x=x+0.5*diff(xlim)*grid::convertX(unit(attr(ggraph::label_rect(text0,fontsize=18),"width"),"cm"),"npc",valueOnly = TRUE),
-                        y=y+0.5*diff(ylim)*grid::convertY(unit(attr(ggraph::label_rect(text0,fontsize=18),"height"),"cm"),"npc",valueOnly = TRUE)))
+  # Text label sizes
+  tmp <- ggraph::label_rect(g$text0,fontsize=18)
+  text_width  <- grid::convertX(unit(grid::unit(vctrs::field(tmp, 'width'), vctrs::field(tmp, 'width_unit')),"cm"),"npc",valueOnly = TRUE)
+  text_height <- grid::convertX(unit(grid::unit(vctrs::field(tmp, 'height'), vctrs::field(tmp, 'height_unit')),"cm"),"npc",valueOnly = TRUE)
   
+  # make empty graph with space for text labels inside the plot
+  p <- ggraph::ggraph(g) + 
+    geom_blank(aes(x=x-0.5*diff(xlim)*text_width,y=y-0.5*diff(ylim)*text_height)) +
+    geom_blank(aes(x=x+0.5*diff(xlim)*text_width,y=y+0.5*diff(ylim)*text_height))
+
   # Radii of circles
   if (is.element(circle,c("SS","MSS","I","I2"))) {
     # switch off collinearity analysis when information is visualized
