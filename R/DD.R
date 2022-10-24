@@ -77,6 +77,8 @@ DD <- function(fixed,random=NULL,data,keep=~1,center=FALSE,eps=1e-12) {
   N <- nrow(data)
   if (N!=N.all) warning(paste("Removed",N.all-N,"rows with missing values in response or explanatory variables"))
 
+  # TO DO: add option "keep.order=TRUE" to terms() call below?
+  
   # find terms in the design and place square brackets around random terms
   myterms <- attr(terms(fixed,data=data),"term.labels")
   if (attr(terms(fixed,data=data),"intercept")==1) {
